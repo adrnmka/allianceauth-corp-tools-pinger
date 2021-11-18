@@ -73,9 +73,9 @@ def bootstrap_notification_tasks():
     
     # fire off tasks for each corp with active models
     for cid in all_member_corps_in_audit:
-        corporation_notification_update(cid)
+        corporation_notification_update.apply_async(args=(cid), priority=TASK_PRIO+1)
 
-@shared_task
+@shared_task(bind=True, base=QueueOnce)
 def corporation_notification_update(corporation_id):
     # get oldest token and update notifications chained with a notification check
     data = _get_cache_data_for_corp(corporation_id)
