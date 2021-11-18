@@ -67,7 +67,7 @@ def bootstrap_notification_tasks():
     # get list of all active corp tasks from cache
 
     # get all new corps not in cache
-    all_member_corps_in_audit = CharacterAudit.objects.filter(character__character_ownership__user__profiles__state__name__in=["Member"],
+    all_member_corps_in_audit = CharacterAudit.objects.filter(character__character_ownership__user__profile__state__name__in=["Member"],
                                                               characterroles__station_manager=True,
                                                               active=True).values_list("character__corporation_id", flat=True)
     
