@@ -492,7 +492,7 @@ class StructureLostShields(NotificationPing):
         structure_type, _ = ctm.EveItemType.objects.get_or_create_from_esi(self._data['structureTypeID'])
 
         try:
-            structure_name = ctm.EveLocation.objects.get(location_id=self._data['structureID'])
+            structure_name = ctm.EveLocation.objects.get(location_id=self._data['structureID']).location_name
         except ctm.EveLocation.DoesNotExist:
             # TODO find the name via esi and create the model
             structure_name = "Unknown"
@@ -557,7 +557,7 @@ class StructureLostArmor(NotificationPing):
         structure_type, _ = ctm.EveItemType.objects.get_or_create_from_esi(self._data['structureTypeID'])
 
         try:
-            structure_name = ctm.EveLocation.objects.get(location_id=self._data['structureID'])
+            structure_name = ctm.EveLocation.objects.get(location_id=self._data['structureID']).location_name
         except ctm.EveLocation.DoesNotExist:
             # TODO find the name via esi and create the model
             structure_name = "Unknown"
@@ -637,7 +637,7 @@ class StructureUnderAttack(NotificationPing):
         structure_type, _ = ctm.EveItemType.objects.get_or_create_from_esi(self._data['structureTypeID'])
 
         try:
-            structure_name = ctm.EveLocation.objects.get(location_id=self._data['structureID']).name
+            structure_name = ctm.EveLocation.objects.get(location_id=self._data['structureID']).location_name
         except ctm.EveLocation.DoesNotExist:
             # TODO find the name via esi and create the model
             structure_name = "Unknown"
