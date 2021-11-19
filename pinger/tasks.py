@@ -1,3 +1,4 @@
+import time
 import datetime
 import logging
 import json
@@ -29,12 +30,26 @@ logger = logging.getLogger(__name__)
 
 
 def _get_head_id(char_id):
-    return Notification.objects.filter(
-        character_character_id=char_id,
+    _head = Notification.objects.filter(
+        character__character__character_id=char_id,
     ).aggregate(
-        Max('id')
-    ).get("id__max", 0)
+        Max('pk')
+    )
+    if _head.get("pk__max", 0) is None:
+        return 0
+    else:
+        return _head.get("pk__max", 0)
 
+
+def _build_cshar_cache_id(char_id):
+    return f"ct-pingger-char-{char_id}"
+
+
+def _get_last_head_id(char_id):
+    return cache.get(_build_cshar_cache_id(char_id), 0)
+
+def _set_last_head_id(char_id, id):
+    return cache.set(_build_cshar_cache_id(char_id), id)
 
 def _build_corp_cache_id(corp_id):
     return f"ct-pingger-corp-{corp_id}"
@@ -48,8 +63,7 @@ def _get_cache_data_for_corp(corp_id):
         char_array = cached_data.get("char_array")
         return (last_char, char_array)
     else:
-        return False
-
+        return (0, [])
 
 def _set_cache_data_for_corp(corp_id, last_char, char_array):
     data = {
@@ -94,25 +108,29 @@ def corporation_notification_update(self, corporation_id):
         all_chars_in_corp.sort()
         if last_character in all_chars_in_corp:
             idx = all_chars_in_corp.index(last_character) + 1
-            if idx == len(all_chars_in_corp):
-                idx = 0
-            character_id = all_chars_in_corp[idx]
-            logger.info(f"Updating with {character_id}")
-            current_head_id = _get_head_id(character_id)
-            #update notifications for this character
-            update_character_notifications(character_id)
-            # did we get any?
-            if current_head_id != _get_head_id(character_id):
-                # process pings and send them!
+        else:
+            idx = 0
 
-                process_notifications.apply_async(priority=TASK_PRIO)
+        if idx == len(all_chars_in_corp):
+            idx = 0
+        character_id = all_chars_in_corp[idx]
+        logger.info(f"Updating with {character_id}")
+        current_head_id = _get_last_head_id(character_id)
+        #update notifications for this character
+        update_character_notifications(character_id)
+        # did we get any?
+        new_head_id = _get_head_id(character_id)
+        if current_head_id != new_head_id:
+            # process pings and send them!
 
-            # leverage cache
-            _set_cache_data_for_corp(corporation_id, )
+            process_notifications.apply_async(priority=TASK_PRIO)
 
-            # schedule the next corp token depending on the amount available ( 10 min / characters we have ) for each corp
-            delay = CACHE_TIME_SECONDS / len(all_chars_in_corp)
-            corporation_notification_update.apply_async(priority=(TASK_PRIO+1), countdown=delay)
+        # leverage cache
+        _set_cache_data_for_corp(corporation_id, character_id, all_chars_in_corp)
+        _set_last_head_id(character_id, new_head_id)
+        # schedule the next corp token depending on the amount available ( 10 min / characters we have ) for each corp
+        delay = CACHE_TIME_SECONDS / len(all_chars_in_corp)
+        corporation_notification_update.apply_async(args=[corporation_id], priority=(TASK_PRIO+1), countdown=delay)
 
 
 @shared_task(bind=True, base=QueueOnce)
@@ -141,21 +159,22 @@ def process_notifications(self):
             .prefetch_related("alliance_filter", "corporation_filter", "region_filter")
         
         for hook in webhooks:
-            for p in l:
-                corp_filter, alli_filter, region_filter = l.get_filters()
+            regions = hook.region_filter.all().values_list("region_id", flat=True)
+            alliances = hook.alliance_filter.all().values_list("alliance_id", flat=True)
+            corporations = hook.corporation_filter.all().values_list("corporation_id", flat=True)
 
-                if corp_filter is not None:
-                    corporations = hook.corporation_filter.all().values_list("corporation_id", flat=True)
+            for p in l:
+                corp_filter, alli_filter, region_filter = p.get_filters()
+
+                if corp_filter is not None and len(corporations) > 0:
                     if corp_filter not in corporations:
                         continue
 
-                if alli_filter is not None:
-                    alliances = hook.alliance_filters.all().values_list("alliance_id", flat=True)
+                if alli_filter is not None and len(alliances) > 0:
                     if corp_filter not in alliances:
                         continue
 
-                if region_filter is not None:
-                    regions = hook.region_filter.all().values_list("region_id", flat=True)
+                if region_filter is not None and len(regions) > 0:
                     if region_filter not in regions:
                         continue
 
@@ -168,10 +187,33 @@ def process_notifications(self):
                 )
                 ping_ob.send_ping()
             
+def _build_wh_cache_key(wh_id):
+    return f"ct-pingger-wh-{wh_id}"
+
+def _get_wh_cooloff(wh_id):
+    return cache.get(_build_wh_cache_key(wh_id), False)
+
+def _set_wh_cooloff(wh_id, cooloff):
+    ready_time = timezone.now() + datetime.timedelta(seconds=cooloff)
+    unixtime = time.mktime(ready_time.timetuple())
+    cache.set(_build_wh_cache_key(wh_id), unixtime, cooloff+.5)
+
+def _get_cooloff_time(wh_id):
+    cached = _get_wh_cooloff(wh_id)
+    if cached:
+        unixtime = time.mktime(timezone.now().timetuple())
+        return (cached - unixtime) + 0.15
+    else:
+        return 0
 
 @shared_task(bind=True, max_retries=None)
 def send_ping(self, ping_id):
     ping_ob = Ping.objects.get(id=ping_id)
+
+    wh_sleep = _get_cooloff_time(ping_ob.hook.id)
+    if wh_sleep > 0:
+        logger.warning(f"Webhook rate limited: trying again in {wh_sleep} seconds...")
+        self.retry(countdown=wh_sleep)
 
     if ping_ob.ping_sent == True:
         return "Already done!"
@@ -184,6 +226,7 @@ def send_ping(self, ping_id):
         alertText,
         ping_ob.body
     )
+
     logger.debug(payload)
     url = ping_ob.hook.discord_webhook
     custom_headers = {'Content-Type': 'application/json'}
@@ -201,6 +244,7 @@ def send_ping(self, ping_id):
         errors = json.loads(response.content.decode('utf-8'))
         wh_sleep = (int(errors['retry_after']) / 1000) + 0.15
         logger.warning(f"Webhook rate limited: trying again in {wh_sleep} seconds...")
+        _set_wh_cooloff(ping_ob.hook.id, wh_sleep)
         self.retry(countdown=wh_sleep)
     else:
         logger.error(f"{ping_ob.notification_id} failed ({response.status_code}) to: {url}")

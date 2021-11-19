@@ -484,7 +484,7 @@ class StructureLostShields(NotificationPing):
     """
 
     def build_ping(self):
-        system_db = ctm.MapSystem.objects.get(system_id=self._data['solarSystemID'])
+        system_db = ctm.MapSystem.objects.get(system_id=self._data['solarsystemID'])
 
         system_name = system_db.name
         system_name = f"[{system_name}](http://evemaps.dotlan.net/system/{system_name.replace(' ', '_')})"
@@ -549,7 +549,7 @@ class StructureLostArmor(NotificationPing):
     """
 
     def build_ping(self):
-        system_db = ctm.MapSystem.objects.get(system_id=self._data['solarSystemID'])
+        system_db = ctm.MapSystem.objects.get(system_id=self._data['solarsystemID'])
 
         system_name = system_db.name
         system_name = f"[{system_name}](http://evemaps.dotlan.net/system/{system_name.replace(' ', '_')})"
@@ -626,7 +626,7 @@ class StructureUnderAttack(NotificationPing):
     """
 
     def build_ping(self):
-        system_db = ctm.MapSystem.objects.get(system_id=self._data['solarSystemID'])
+        system_db = ctm.MapSystem.objects.get(system_id=self._data['solarsystemID'])
 
         system_name = system_db.name
         region_name = system_db.constellation.region.name
@@ -646,7 +646,7 @@ class StructureUnderAttack(NotificationPing):
         shld = float(self._data['shieldPercentage'])
         armr = float(self._data['armorPercentage'])
         hull = float(self._data['hullPercentage'])
-        body = "Structure under Attack!\n[ S: {1:.2f}% A: {2:.2f}% H: {3:.2f}% ]".format(shld, armr, hull)
+        body = "Structure under Attack!\n[ S: {0:.2f}% A: {1:.2f}% H: {2:.2f}% ]".format(shld, armr, hull)
 
         corp_id = self._notification.character.character.corporation_id
         corp_ticker = self._notification.character.character.corporation_ticker
@@ -656,12 +656,11 @@ class StructureUnderAttack(NotificationPing):
         footer = {"icon_url": "https://imageserver.eveonline.com/Corporation/%s_64.png" % (str(corp_id)),
                   "text": "%s (%s)" % (self._notification.character.character.corporation_name, corp_ticker)}
 
-        attacking_char = ""
-        attacking_char = ctm.EveName.objects.get_or_create_from_esi(self._data['charID']).name
+        attacking_char, _ = ctm.EveName.objects.get_or_create_from_esi(self._data['charID'])
 
         attackerStr = "*[%s](https://zkillboard.com/search/%s/)*, [%s](https://zkillboard.com/search/%s/), **[%s](https://zkillboard.com/search/%s/)**" % \
-                                                    (attacking_char,
-                                                    attacking_char.replace(" ", "%20"),
+                                                    (attacking_char.name,
+                                                    attacking_char.name.replace(" ", "%20"),
                                                     self._data.get('corpName', ""),
                                                     self._data.get('corpName', "").replace(" ", "%20"),
                                                     self._data.get('allianceName', "*-*"),
@@ -670,7 +669,7 @@ class StructureUnderAttack(NotificationPing):
 
         fields = [{'name': 'System', 'value': system_name, 'inline': True},
                     {'name': 'Region', 'value': region_name, 'inline': True},
-                    {'name': 'Type', 'value': structure_type, 'inline': True},
+                    {'name': 'Type', 'value': structure_type.name, 'inline': True},
                     {'name': 'Attacker', 'value': attackerStr, 'inline': False}]
 
         self.package_ping(title,
@@ -716,7 +715,6 @@ class SovStructureReinforced(NotificationPing):
 
         ref_time_delta = filetime_to_dt(self._data['decloakTime'])
 
-        timestamp = self._notification.timestamp
         tile_till = format_timedelta(
             ref_time_delta.replace(tzinfo=datetime.timezone.utc) - datetime.datetime.now(datetime.timezone.utc))
         alli_id = self._notification.character.character.alliance_id
@@ -724,17 +722,6 @@ class SovStructureReinforced(NotificationPing):
         
         footer = {"icon_url": "https://images.evetech.net/alliances/%s/logo" % (str(alli_id)),
                     "text": "%s (%s)" % (self._notification.character.character.alliance_name, alli_ticker)}
-
-        attacking_char = ""
-        attacking_char = ctm.EveName.objects.get_or_create_from_esi(self._data['charID']).name
-
-        attackerStr = "*[%s](https://zkillboard.com/search/%s/)*, [%s](https://zkillboard.com/search/%s/), **[%s](https://zkillboard.com/search/%s/)**" % \
-                                                    (attacking_char,
-                                                    attacking_char.replace(" ", "%20"),
-                                                    self._data.get('corpName', ""),
-                                                    self._data.get('corpName', "").replace(" ", "%20"),
-                                                    self._data.get('allianceName', "*-*"),
-                                                    self._data.get('allianceName', "").replace(" ", "%20"))
 
         fields = [{'name': 'System', 'value': system_name, 'inline': True},
                     {'name': 'Region', 'value': region_name, 'inline': True},
@@ -828,11 +815,11 @@ class OwnershipTransferred(NotificationPing):
 
         title = "Structure Transfered"
 
-        originator = ctm.EveName.objects.get_or_create_from_esi(self._data['charID']).name
-        new_owner = ctm.EveName.objects.get_or_create_from_esi(self._data['newOwnerCorpID']).name
-        old_owner = ctm.EveName.objects.get_or_create_from_esi(self._data['oldOwnerCorpID']).name
+        originator, _ = ctm.EveName.objects.get_or_create_from_esi(self._data['charID'])
+        new_owner, _ = ctm.EveName.objects.get_or_create_from_esi(self._data['newOwnerCorpID'])
+        old_owner, _ = ctm.EveName.objects.get_or_create_from_esi(self._data['oldOwnerCorpID'])
 
-        body = "Structure Transfered from %s to %s" % (old_owner, new_owner)
+        body = "Structure Transfered from %s to %s" % (old_owner.name, new_owner.name)
 
         corp_id = self._notification.character.character.corporation_id
         corp_ticker = self._notification.character.character.corporation_ticker
@@ -843,8 +830,8 @@ class OwnershipTransferred(NotificationPing):
         fields = [{'name': 'Structure', 'value': structure_name, 'inline': True},
                     {'name': 'System', 'value': system_name, 'inline': True},
                     {'name': 'Region', 'value': region_name, 'inline': True},
-                    {'name': 'Type', 'value': structure_type, 'inline': True},
-                    {'name': 'Originator', 'value': originator, 'inline': True}
+                    {'name': 'Type', 'value': structure_type.name, 'inline': True},
+                    {'name': 'Originator', 'value': originator.name, 'inline': True}
                     ]
 
         self.package_ping(title,
