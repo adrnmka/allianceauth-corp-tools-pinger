@@ -514,7 +514,7 @@ class StructureLostShields(NotificationPing):
                   "text": "%s (%s)" % (self._notification.character.character.corporation_name, corp_ticker)}
 
         fields = [{'name': 'System', 'value': system_name, 'inline': True},
-                    {'name': 'Type', 'value': structure_type, 'inline': True},
+                    {'name': 'Type', 'value': structure_type.name, 'inline': True},
                     {'name': 'Owner', 'value': corp_name, 'inline': False},
                     {'name': 'Time Till Out', 'value': tile_till, 'inline': False},
                     {'name': 'Date Out', 'value': ref_date_time.strftime("%Y-%m-%d %H:%M"), 'inline': False}]
