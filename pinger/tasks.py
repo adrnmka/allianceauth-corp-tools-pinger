@@ -41,15 +41,14 @@ def _get_head_id(char_id):
         return _head.get("pk__max", 0)
 
 
-def _build_cshar_cache_id(char_id):
+def _build_char_cache_id(char_id):
     return f"ct-pingger-char-{char_id}"
 
-
 def _get_last_head_id(char_id):
-    return cache.get(_build_cshar_cache_id(char_id), 0)
+    return cache.get(_build_char_cache_id(char_id), 0)
 
 def _set_last_head_id(char_id, id):
-    return cache.set(_build_cshar_cache_id(char_id), id)
+    return cache.set(_build_char_cache_id(char_id), id)
 
 def _build_corp_cache_id(corp_id):
     return f"ct-pingger-corp-{corp_id}"
@@ -83,11 +82,17 @@ def bootstrap_notification_tasks():
     # get all new corps not in cache
     all_member_corps_in_audit = CharacterAudit.objects.filter(character__character_ownership__user__profile__state__name__in=["Member"],
                                                               characterroles__station_manager=True,
-                                                              active=True).values_list("character__corporation_id", flat=True)
+                                                              active=True)
     
+    #TODO add app.model setting to filter for who to ping for.
+    all_member_corps_in_audit.filter(character__alliance_id__in=[1900696668, 499005583, 1911932230])
+
+    corps = list(set(all_member_corps_in_audit.values_list("character__corporation_id", flat=True)))
+
     # fire off tasks for each corp with active models
-    for cid in all_member_corps_in_audit:
+    for cid in corps:
         corporation_notification_update.apply_async(args=[cid], priority=TASK_PRIO+1)
+
 
 @shared_task(bind=True, base=QueueOnce)
 def corporation_notification_update(self, corporation_id):
@@ -130,6 +135,8 @@ def corporation_notification_update(self, corporation_id):
         _set_last_head_id(character_id, new_head_id)
         # schedule the next corp token depending on the amount available ( 10 min / characters we have ) for each corp
         delay = CACHE_TIME_SECONDS / len(all_chars_in_corp)
+        logger.info(f"Ping Status: We have {len(all_chars_in_corp)} Characters, will update every {delay} seconds.")
+
         corporation_notification_update.apply_async(args=[corporation_id], priority=(TASK_PRIO+1), countdown=delay)
 
 
@@ -186,17 +193,21 @@ def process_notifications(self):
                     alerting = p.force_at_ping
                 )
                 ping_ob.send_ping()
-            
+
+
 def _build_wh_cache_key(wh_id):
     return f"ct-pingger-wh-{wh_id}"
 
+
 def _get_wh_cooloff(wh_id):
     return cache.get(_build_wh_cache_key(wh_id), False)
+
 
 def _set_wh_cooloff(wh_id, cooloff):
     ready_time = timezone.now() + datetime.timedelta(seconds=cooloff)
     unixtime = time.mktime(ready_time.timetuple())
     cache.set(_build_wh_cache_key(wh_id), unixtime, cooloff+.5)
+
 
 def _get_cooloff_time(wh_id):
     cached = _get_wh_cooloff(wh_id)
@@ -205,6 +216,7 @@ def _get_cooloff_time(wh_id):
         return (cached - unixtime) + 0.15
     else:
         return 0
+
 
 @shared_task(bind=True, max_retries=None)
 def send_ping(self, ping_id):
