@@ -102,8 +102,11 @@ def bootstrap_notification_tasks():
 
 
 @shared_task()
-def corporation_notification_update(corporation_id):
-    return False  # empty the queue without purging.
+def queue_corporation_notification_update(self, corporation_id, wait_time):
+    corporation_notification_update.apply_async(args=[corporation_id], priority=(TASK_PRIO+1), countdown=wait_time)
+
+@shared_task(bind=True, base=QueueOnce)
+def corporation_notification_update(self, corporation_id):
     # get oldest token and update notifications chained with a notification check
     data = _get_cache_data_for_corp(corporation_id)
     
@@ -145,8 +148,8 @@ def corporation_notification_update(corporation_id):
         _set_last_head_id(character_id, new_head_id)
         # schedule the next corp token depending on the amount available ( 10 min / characters we have ) for each corp
         logger.info(f"PINGER: {corporation_id} We have {len(all_chars_in_corp)} Characters, will update every {delay} seconds.")
-
-        corporation_notification_update.apply_async(args=[corporation_id], priority=(TASK_PRIO+1), countdown=delay)
+        # cant requeue ourself in a queueonce enviro
+        queue_corporation_notification_update.apply_async(args=[corporation_id, delay], priority=(TASK_PRIO+1), countdown=1)
 
 
 @shared_task(bind=True, base=QueueOnce)
