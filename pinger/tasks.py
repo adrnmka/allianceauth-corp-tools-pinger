@@ -5,6 +5,7 @@ import json
 import requests
 
 from celery import shared_task, chain
+from celery.exceptions import SoftTimeLimitExceeded
 from django.core.cache import cache
 
 from allianceauth.services.tasks import QueueOnce
@@ -105,7 +106,7 @@ def bootstrap_notification_tasks():
 def queue_corporation_notification_update(corporation_id, wait_time):
     corporation_notification_update.apply_async(args=[corporation_id], priority=(TASK_PRIO+1), countdown=wait_time)
 
-@shared_task(bind=True, base=QueueOnce)
+@shared_task(bind=True, base=QueueOnce, soft_time_limit=5, autoretry_for=(SoftTimeLimitExceeded,))
 def corporation_notification_update(self, corporation_id):
     # get oldest token and update notifications chained with a notification check
     data = _get_cache_data_for_corp(corporation_id)
