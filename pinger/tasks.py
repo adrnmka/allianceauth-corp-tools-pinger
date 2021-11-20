@@ -60,14 +60,18 @@ def _get_cache_data_for_corp(corp_id):
         cached_data = json.loads(cached_data)
         last_char = cached_data.get("last_char")
         char_array = cached_data.get("char_array")
-        return (last_char, char_array)
+        unixtime = time.mktime(timezone.now().timetuple())
+        last_update = cached_data.get("char_array", 0)
+        last_update = unixtime - last_update
+        return (last_char, char_array, last_update)
     else:
-        return (0, [])
+        return (0, [], -661)
 
-def _set_cache_data_for_corp(corp_id, last_char, char_array):
+def _set_cache_data_for_corp(corp_id, last_char, char_array, next_update):
     data = {
         "last_char": last_char,
         "char_array": char_array,
+        "next_update": time.mktime(timezone.now().timetuple()) + next_update
     }
     cache.set(_build_corp_cache_id(corp_id), json.dumps(data), CACHE_TIME_SECONDS)
 
@@ -91,7 +95,9 @@ def bootstrap_notification_tasks():
 
     # fire off tasks for each corp with active models
     for cid in corps:
-        corporation_notification_update.apply_async(args=[cid], priority=TASK_PRIO+1)
+        last_char, char_array, last_update = _get_cache_data_for_corp(cid)
+        if last_update < -660:  # 11 min since last update should have fired.
+            corporation_notification_update.apply_async(args=[cid], priority=TASK_PRIO+1)
 
 
 @shared_task()
@@ -130,11 +136,12 @@ def corporation_notification_update(corporation_id):
 
             process_notifications.apply_async(priority=TASK_PRIO)
 
+        delay = CACHE_TIME_SECONDS / len(all_chars_in_corp)
+
         # leverage cache
         _set_cache_data_for_corp(corporation_id, character_id, all_chars_in_corp)
-        _set_last_head_id(character_id, new_head_id)
+        _set_last_head_id(character_id, new_head_id, delay)
         # schedule the next corp token depending on the amount available ( 10 min / characters we have ) for each corp
-        delay = CACHE_TIME_SECONDS / len(all_chars_in_corp)
         logger.info(f"PINGER: {corporation_id} We have {len(all_chars_in_corp)} Characters, will update every {delay} seconds.")
 
         corporation_notification_update.apply_async(args=[corporation_id], priority=(TASK_PRIO+1), countdown=delay)
