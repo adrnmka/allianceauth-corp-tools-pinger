@@ -102,7 +102,7 @@ def bootstrap_notification_tasks():
 
 
 @shared_task()
-def queue_corporation_notification_update(self, corporation_id, wait_time):
+def queue_corporation_notification_update(corporation_id, wait_time):
     corporation_notification_update.apply_async(args=[corporation_id], priority=(TASK_PRIO+1), countdown=wait_time)
 
 @shared_task(bind=True, base=QueueOnce)
