@@ -139,8 +139,8 @@ def corporation_notification_update(corporation_id):
         delay = CACHE_TIME_SECONDS / len(all_chars_in_corp)
 
         # leverage cache
-        _set_cache_data_for_corp(corporation_id, character_id, all_chars_in_corp)
-        _set_last_head_id(character_id, new_head_id, delay)
+        _set_cache_data_for_corp(corporation_id, character_id, all_chars_in_corp, delay)
+        _set_last_head_id(character_id, new_head_id)
         # schedule the next corp token depending on the amount available ( 10 min / characters we have ) for each corp
         logger.info(f"PINGER: {corporation_id} We have {len(all_chars_in_corp)} Characters, will update every {delay} seconds.")
 
