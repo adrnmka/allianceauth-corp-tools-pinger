@@ -61,7 +61,7 @@ def _get_cache_data_for_corp(corp_id):
         last_char = cached_data.get("last_char")
         char_array = cached_data.get("char_array")
         unixtime = time.mktime(timezone.now().timetuple())
-        last_update = cached_data.get("char_array", 0)
+        last_update = cached_data.get("last_update", 0)
         last_update = unixtime - last_update
         return (last_char, char_array, last_update)
     else:
