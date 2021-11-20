@@ -136,8 +136,8 @@ def corporation_notification_update(corporation_id):
 
             process_notifications.apply_async(priority=TASK_PRIO)
 
-        delay = CACHE_TIME_SECONDS / len(all_chars_in_corp)
-
+        delay = max(CACHE_TIME_SECONDS / len(all_chars_in_corp), 60)
+        
         # leverage cache
         _set_cache_data_for_corp(corporation_id, character_id, all_chars_in_corp, delay)
         _set_last_head_id(character_id, new_head_id)
