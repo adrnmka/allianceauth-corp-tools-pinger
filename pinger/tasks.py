@@ -126,7 +126,7 @@ def corporation_notification_update(corporation_id):
         if idx == len(all_chars_in_corp):
             idx = 0
         character_id = all_chars_in_corp[idx]
-        logger.info(f"PINGER: Updating with {character_id}")
+        logger.info(f"PINGER: {corporation_id} Updating with {character_id}")
         current_head_id = _get_last_head_id(character_id)
         #update notifications for this character
         update_character_notifications(character_id)
