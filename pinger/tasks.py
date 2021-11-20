@@ -94,8 +94,8 @@ def bootstrap_notification_tasks():
         corporation_notification_update.apply_async(args=[cid], priority=TASK_PRIO+1)
 
 
-@shared_task(bind=True, base=QueueOnce)
-def corporation_notification_update(self, corporation_id):
+@shared_task()
+def corporation_notification_update(corporation_id):
     # get oldest token and update notifications chained with a notification check
     data = _get_cache_data_for_corp(corporation_id)
     
