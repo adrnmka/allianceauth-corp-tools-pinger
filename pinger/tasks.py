@@ -100,7 +100,7 @@ def corporation_notification_update(self, corporation_id):
     data = _get_cache_data_for_corp(corporation_id)
     
     if data:
-        last_character = data[1]
+        last_character = data[0]
 
         logger.info(f"PINGER: {corporation_id} Last Update was with {last_character}")
 
