@@ -115,9 +115,9 @@ def corporation_notification_update(corporation_id):
                                                           character__corporation_id=corporation_id,
                                                           active=True).values_list("character__character_id", flat=True)))
         
+        all_chars_in_corp.sort()
         logger.info(f"PINGER: {corporation_id} We have these Characters {all_chars_in_corp}")
 
-        all_chars_in_corp.sort()
         if last_character in all_chars_in_corp:
             idx = all_chars_in_corp.index(last_character) + 1
         else:
