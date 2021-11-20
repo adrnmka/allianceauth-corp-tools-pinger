@@ -102,13 +102,13 @@ def corporation_notification_update(self, corporation_id):
     if data:
         last_character = data[1]
 
-        logger.info(f"Last Update was with {last_character}")
+        logger.info(f"PINGER: {corporation_id} Last Update was with {last_character}")
 
         all_chars_in_corp = list(set(CharacterAudit.objects.filter((Q(characterroles__station_manager=True) | Q(characterroles__personnel_manager=True)),
                                                           character__corporation_id=corporation_id,
                                                           active=True).values_list("character__character_id", flat=True)))
         
-        logger.info(f"We have these Characters {all_chars_in_corp}")
+        logger.info(f"PINGER: {corporation_id} We have these Characters {all_chars_in_corp}")
 
         all_chars_in_corp.sort()
         if last_character in all_chars_in_corp:
@@ -135,7 +135,7 @@ def corporation_notification_update(self, corporation_id):
         _set_last_head_id(character_id, new_head_id)
         # schedule the next corp token depending on the amount available ( 10 min / characters we have ) for each corp
         delay = CACHE_TIME_SECONDS / len(all_chars_in_corp)
-        logger.info(f"Ping Status: We have {len(all_chars_in_corp)} Characters, will update every {delay} seconds.")
+        logger.info(f"PINGER: {corporation_id} We have {len(all_chars_in_corp)} Characters, will update every {delay} seconds.")
 
         corporation_notification_update.apply_async(args=[corporation_id], priority=(TASK_PRIO+1), countdown=delay)
 
