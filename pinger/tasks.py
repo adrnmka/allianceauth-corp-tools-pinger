@@ -85,7 +85,7 @@ def bootstrap_notification_tasks():
                                                               active=True)
     
     #TODO add app.model setting to filter for who to ping for.
-    all_member_corps_in_audit.filter(character__alliance_id__in=[1900696668, 499005583, 1911932230])
+    all_member_corps_in_audit = all_member_corps_in_audit.filter(character__alliance_id__in=[1900696668, 499005583, 1911932230])
 
     corps = list(set(all_member_corps_in_audit.values_list("character__corporation_id", flat=True)))
 
