@@ -103,6 +103,7 @@ def bootstrap_notification_tasks():
 
 @shared_task()
 def corporation_notification_update(corporation_id):
+    return False  # empty the queue without purging.
     # get oldest token and update notifications chained with a notification check
     data = _get_cache_data_for_corp(corporation_id)
     
