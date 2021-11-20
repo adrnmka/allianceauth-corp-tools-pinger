@@ -1,6 +1,8 @@
+from django.core.exceptions import ValidationError
 from django.db import models
 from allianceauth.eveonline.models import EveAllianceInfo, EveCorporationInfo
 from corptools.models import MapRegion
+from django.db.models.deletion import CASCADE
 
 
 class PingType(models.Model):
@@ -56,3 +58,19 @@ class Ping(models.Model):
                     self.id
                 ]
             )
+
+
+class PingerConfig(models.Model):
+
+    AllianceLimiter = models.ManyToManyField(EveAllianceInfo, blank=True)
+    CorporationLimiter = models.ManyToManyField(EveCorporationInfo, blank=True)
+
+    min_time_between_updates = models.IntegerField(default=60)
+
+    def save(self, *args, **kwargs):
+        if not self.pk and PingerConfig.objects.exists():
+            # Force a single object
+            raise ValidationError('Only one settings there can be!')
+        self.pk = self.id = 1 # If this happens to be deleted and recreated, force it to be 1
+        return super().save(*args, **kwargs)
+

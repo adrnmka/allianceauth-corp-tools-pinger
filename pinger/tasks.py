@@ -132,14 +132,22 @@ def corporation_notification_update(self, corporation_id):
             idx = 0
         character_id = all_chars_in_corp[idx]
         logger.info(f"PINGER: {corporation_id} Updating with {character_id}")
+
+        # if the char bugs out we will retry. so use next toon.
+        #TODO Blacklist bad chars
+        _set_cache_data_for_corp(corporation_id, character_id, all_chars_in_corp, 10)
+
         current_head_id = _get_last_head_id(character_id)
-        #update notifications for this character
-        update_character_notifications(character_id)
+
+        #update notifications for this character inline.
+        update = update_character_notifications(character_id)
+
+        logger.info(f"PINGER: {corporation_id} {update}")
+
         # did we get any?
         new_head_id = _get_head_id(character_id)
         if current_head_id != new_head_id:
             # process pings and send them!
-
             process_notifications.apply_async(priority=TASK_PRIO)
 
         delay = max(CACHE_TIME_SECONDS / len(all_chars_in_corp), 60)
