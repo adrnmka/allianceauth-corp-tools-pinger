@@ -97,6 +97,7 @@ def bootstrap_notification_tasks():
     for cid in corps:
         last_char, char_array, last_update = _get_cache_data_for_corp(cid)
         if last_update < -660:  # 11 min since last update should have fired.
+            logger.warning(f"PINGER: {cid} Out of Sync, Starting back up!")
             corporation_notification_update.apply_async(args=[cid], priority=TASK_PRIO+1)
 
 
@@ -137,7 +138,7 @@ def corporation_notification_update(corporation_id):
             process_notifications.apply_async(priority=TASK_PRIO)
 
         delay = max(CACHE_TIME_SECONDS / len(all_chars_in_corp), 60)
-        
+
         # leverage cache
         _set_cache_data_for_corp(corporation_id, character_id, all_chars_in_corp, delay)
         _set_last_head_id(character_id, new_head_id)
