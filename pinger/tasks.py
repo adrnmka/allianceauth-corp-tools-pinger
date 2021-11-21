@@ -1,9 +1,7 @@
-from __future__ import with_statement
 import time
 import datetime
 import logging
 import json
-from afat.tasks import esi_fatlinks_error_handling
 import requests
 
 from celery import shared_task, chain
@@ -21,11 +19,7 @@ from django.db.models import Q
 from django.db.models import Max
 from pinger.models import DiscordWebhook, Ping
 
-import signal, time
-from contextlib import contextmanager
-
 from . import notifications
-from corptools.providers import esi
 
 TZ_STRING = "%Y-%m-%dT%H:%M:%SZ"
 
@@ -108,39 +102,15 @@ def bootstrap_notification_tasks():
             corporation_notification_update.apply_async(args=[cid], priority=TASK_PRIO+1)
 
 
-class TimeoutException(Exception): pass
-
-
-@contextmanager
-def time_limit(seconds):
-    def signal_handler(signum, frame):
-        raise TimeoutException
-    signal.signal(signal.SIGALRM, signal_handler)
-    signal.alarm(seconds)
-    try:
-        yield
-    finally:
-        signal.alarm(0)
-
-
 @shared_task()
 def queue_corporation_notification_update(corporation_id, wait_time):
     corporation_notification_update.apply_async(args=[corporation_id], priority=(TASK_PRIO+1), countdown=wait_time)
 
-@shared_task(bind=True, base=QueueOnce)
+@shared_task(bind=True, base=QueueOnce, time_limit=30, default_retry_delay=15, autoretry_for=(TimeLimitExceeded,))
 def corporation_notification_update(self, corporation_id):
     # get oldest token and update notifications chained with a notification check
     data = _get_cache_data_for_corp(corporation_id)
-
-    try:
-        status = esi.client.Status.get_status().result()
-    except:
-        status = {}
     
-    if status.get("players", 0) < 5:
-        logger.warning(f"PINGER: eve is down retrying shortly.")
-        self.retry(countdown=10)
-
     if data:
         last_character = data[0]
 
@@ -169,13 +139,8 @@ def corporation_notification_update(self, corporation_id):
 
         current_head_id = _get_last_head_id(character_id)
 
-        #update notifications for this character inline, with max runtime of 10 seconds.
-        try:
-            with time_limit(10):
-                update = update_character_notifications(character_id)
-        except TimeoutException:
-            logger.warning(f"PINGER: {corporation_id} Failed to update notifications from {character_id} retrying in 10 seconds")
-            self.retry(countdown=10)
+        #update notifications for this character inline.
+        update = update_character_notifications(character_id)
 
         logger.info(f"PINGER: {corporation_id} {update}")
 
