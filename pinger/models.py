@@ -62,10 +62,13 @@ class Ping(models.Model):
 
 class PingerConfig(models.Model):
 
-    AllianceLimiter = models.ManyToManyField(EveAllianceInfo, blank=True)
-    CorporationLimiter = models.ManyToManyField(EveCorporationInfo, blank=True)
+    AllianceLimiter = models.ManyToManyField(EveAllianceInfo, blank=True,
+                                             help_text='Alliances to put into the queue')
+    CorporationLimiter = models.ManyToManyField(EveCorporationInfo, blank=True,
+                                             help_text='Corporations to put into the queue')
 
-    min_time_between_updates = models.IntegerField(default=60)
+    min_time_between_updates = models.IntegerField(default=60,
+                                                   help_text='Minimmum time between tasks for corp.')
 
     def save(self, *args, **kwargs):
         if not self.pk and PingerConfig.objects.exists():

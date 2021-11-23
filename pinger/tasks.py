@@ -18,7 +18,7 @@ from corptools.models import CharacterAudit, Notification
 
 from django.db.models import Q
 from django.db.models import Max
-from pinger.models import DiscordWebhook, Ping
+from pinger.models import DiscordWebhook, Ping, PingerConfig
 
 from . import notifications
 
@@ -30,6 +30,18 @@ TASK_PRIO = 3
 
 logger = logging.getLogger(__name__)
 
+alliances = []
+corporations = []
+min_time = 60
+last_update = 0
+
+def get_settings():
+    pc = PingerConfig.objects.get(pk=1)
+    alliances = list(pc.AllianceLimiter.all().values('alliance_id'))
+    corporations = list(pc.CorporationLimiter.all().values_list('corporation_id'))
+    min_time = pc.min_time_between_updates
+
+    return alliances, corporations, min_time
 
 def _get_head_id(char_id):
     _head = Notification.objects.filter(
@@ -84,14 +96,25 @@ def bootstrap_notification_tasks():
     # run at 10m intervals to keep sync, otherwise run at 10m/people in corp with roles intervals
 
     # get list of all active corp tasks from cache
-
+    allis, corps, _ = get_settings()
     # get all new corps not in cache
     all_member_corps_in_audit = CharacterAudit.objects.filter(character__character_ownership__user__profile__state__name__in=["Member"],
                                                               characterroles__station_manager=True,
                                                               active=True)
     
     #TODO add app.model setting to filter for who to ping for.
-    all_member_corps_in_audit = all_member_corps_in_audit.filter(character__alliance_id__in=[1900696668, 499005583, 1911932230])
+    filters = []
+    if len(allis) > 0:
+        filters.append(Q(character__character__alliance_id__in=allis))
+    
+    if len(corps) > 0:
+        filters.append(Q(character__character__corporation_id__in=allis))
+
+    if len(filters) > 0:
+        query = filters.pop()
+        for q in filters:
+            query |= q
+        all_member_corps_in_audit = all_member_corps_in_audit.filter(query)
 
     corps = list(set(all_member_corps_in_audit.values_list("character__corporation_id", flat=True)))
 
@@ -155,7 +178,7 @@ def corporation_notification_update(self, corporation_id):
         pinged_already = set(list(Ping.objects.values_list("notification_id", flat=True)))
 
         for n in notifs:
-            if n.get('type') in types:
+            if n.get('type') in types.keys():
                 if n.get('notification_id') not in pinged_already:
                     pingable_notifs.append(n)
 
@@ -163,8 +186,9 @@ def corporation_notification_update(self, corporation_id):
 
         # did we get any?
         process_notifications.apply_async(priority=TASK_PRIO, args=[character_id, pingable_notifs])
+        _, _, min_delay = get_settings()
 
-        delay = max(CACHE_TIME_SECONDS / len(all_chars_in_corp), 60)
+        delay = max(CACHE_TIME_SECONDS / len(all_chars_in_corp), min_delay)
 
         # leverage cache
         _set_cache_data_for_corp(corporation_id, character_id, all_chars_in_corp, delay)

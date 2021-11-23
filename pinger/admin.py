@@ -71,3 +71,10 @@ class DiscordWebhookAdmin(admin.ModelAdmin):
 admin.site.register(models.DiscordWebhook, DiscordWebhookAdmin)
 
 admin.site.register(models.PingType)
+
+class SettingsAdmin(admin.ModelAdmin):
+    filter_horizontal = ('AllianceLimiter',
+                         'CorporationLimiter')
+admin.site.register(models.PingerConfig, SettingsAdmin)
+
+
