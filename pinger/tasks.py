@@ -37,8 +37,8 @@ last_update = 0
 
 def get_settings():
     pc = PingerConfig.objects.get(pk=1)
-    alliances = list(pc.AllianceLimiter.all().values_list('alliance_id'))
-    corporations = list(pc.CorporationLimiter.all().values_list('corporation_id'))
+    alliances = pc.AllianceLimiter.all().values_list('alliance_id')
+    corporations = pc.CorporationLimiter.all().values_list('corporation_id')
     min_time = pc.min_time_between_updates
 
     return alliances, corporations, min_time
@@ -108,7 +108,7 @@ def bootstrap_notification_tasks():
         filters.append(Q(character__alliance_id__in=allis))
     
     if len(corps) > 0:
-        filters.append(Q(character__corporation_id__in=allis))
+        filters.append(Q(character__corporation_id__in=corps))
 
     if len(filters) > 0:
         query = filters.pop()
