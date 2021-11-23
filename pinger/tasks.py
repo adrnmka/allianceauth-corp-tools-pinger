@@ -2,6 +2,7 @@ import time
 import datetime
 import logging
 import json
+from esi.models import Token
 import requests
 
 from celery import shared_task, chain
@@ -12,7 +13,7 @@ from allianceauth.services.tasks import QueueOnce
 from django.utils import timezone
 
 from corptools.task_helpers.char_tasks import update_character_notifications
-
+from corptools.providers import esi
 from corptools.models import CharacterAudit, Notification
 
 from django.db.models import Q
@@ -106,7 +107,7 @@ def bootstrap_notification_tasks():
 def queue_corporation_notification_update(corporation_id, wait_time):
     corporation_notification_update.apply_async(args=[corporation_id], priority=(TASK_PRIO+1), countdown=wait_time)
 
-@shared_task(bind=True, base=QueueOnce, time_limit=30, default_retry_delay=15, autoretry_for=(TimeLimitExceeded,))
+@shared_task(bind=True, base=QueueOnce)
 def corporation_notification_update(self, corporation_id):
     # get oldest token and update notifications chained with a notification check
     data = _get_cache_data_for_corp(corporation_id)
@@ -130,31 +131,43 @@ def corporation_notification_update(self, corporation_id):
 
         if idx == len(all_chars_in_corp):
             idx = 0
+
         character_id = all_chars_in_corp[idx]
         logger.info(f"PINGER: {corporation_id} Updating with {character_id}")
 
         # if the char bugs out we will retry. so use next toon.
         #TODO Blacklist bad chars
+        req_scopes = ['esi-characters.read_notifications.v1']
+
+        token = Token.get_token(character_id, req_scopes)
+
+        if not token:
+            self.retry(countdown=30)
+
         _set_cache_data_for_corp(corporation_id, character_id, all_chars_in_corp, 10)
 
-        current_head_id = _get_last_head_id(character_id)
-
+        types = notifications.get_available_types()
         #update notifications for this character inline.
-        update = update_character_notifications(character_id)
+        notifs = esi.client.Character.get_characters_character_id_notifications(character_id=character_id,
+                                                                                             token=token.valid_access_token()).results()
 
-        logger.info(f"PINGER: {corporation_id} {update}")
+        pingable_notifs = []
+        pinged_already = set(list(Ping.objects.values_list("notification_id", flat=True)))
+
+        for n in notifs:
+            if n.get('type') in types:
+                if n.get('notification_id') not in pinged_already:
+                    pingable_notifs.append(n)
+
+        logger.info(f"PINGER: {corporation_id} New Pings: {len(pingable_notifs)}")
 
         # did we get any?
-        new_head_id = _get_head_id(character_id)
-        if current_head_id != new_head_id:
-            # process pings and send them!
-            process_notifications.apply_async(priority=TASK_PRIO)
+        process_notifications.apply_async(priority=TASK_PRIO, args=[character_id, pingable_notifs])
 
         delay = max(CACHE_TIME_SECONDS / len(all_chars_in_corp), 60)
 
         # leverage cache
         _set_cache_data_for_corp(corporation_id, character_id, all_chars_in_corp, delay)
-        _set_last_head_id(character_id, new_head_id)
         # schedule the next corp token depending on the amount available ( 10 min / characters we have ) for each corp
         logger.info(f"PINGER: {corporation_id} We have {len(all_chars_in_corp)} Characters, will update every {delay} seconds.")
         # cant requeue ourself in a queueonce enviro
@@ -162,16 +175,29 @@ def corporation_notification_update(self, corporation_id):
 
 
 @shared_task(bind=True, base=QueueOnce)
-def process_notifications(self):
+def process_notifications(self, cid, notifs):
     cuttoff = timezone.now() - datetime.timedelta(hours=96)
-    
+    char = CharacterAudit.objects.get(character__character_id=cid)
+    new_notifs = []
+
+    for note in notifs:
+        note['timestamp'] = datetime.datetime.fromisoformat(note.get('timestamp').replace("Z", "+00:00") )
+        if note.get('timestamp') > cuttoff:
+            n = Notification(character=char,
+                                notification_id=note.get(
+                                    'notification_id'),
+                                sender_id=note.get('sender_id'),
+                                sender_type=note.get('sender_type'),
+                                notification_text=note.get('text'),
+                                timestamp=note.get('timestamp'),
+                                notification_type=note.get('type'),
+                                is_read=note.get('is_read'))
+            new_notifs.append(n)
+
     pings = {}
     # grab all notifications within scope.
     types = notifications.get_available_types()
     pinged_already = set(list(Ping.objects.filter(time__gte=cuttoff).values_list("notification_id", flat=True)))
-    new_notifs = Notification.objects.filter(timestamp__gte=cuttoff,
-        notification_type__in=types.keys()) \
-        .exclude(notification_id__in=pinged_already)
     # parse them into the parsers
     for n in new_notifs:
         if n.notification_id not in pinged_already:

@@ -70,7 +70,7 @@ class PingerConfig(models.Model):
     def save(self, *args, **kwargs):
         if not self.pk and PingerConfig.objects.exists():
             # Force a single object
-            raise ValidationError('Only one settings there can be!')
+            raise ValidationError('Only one Settings Model can there be at a time! No Sith Lords there are here!')
         self.pk = self.id = 1 # If this happens to be deleted and recreated, force it to be 1
         return super().save(*args, **kwargs)
 

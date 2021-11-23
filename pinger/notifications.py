@@ -147,7 +147,8 @@ class AllAnchoringMsg(NotificationPing):
                           fields=fields, 
                           footer=footer)
 
-        self._alli = None if owner.alliance is None else owner.alliance.name
+        self._corp = self._notification.character.character.corporation_id
+        self._alli = self._notification.character.character.alliance_id
         self._region = system_db.constellation.region.name
 
 class MoonminingExtractionFinished(NotificationPing):
@@ -224,6 +225,7 @@ class MoonminingExtractionFinished(NotificationPing):
                           colour=6881024)
 
         self._corp = self._notification.character.character.corporation_id
+        self._alli = self._notification.character.character.alliance_id
         self._region = system_db.constellation.region.name
 
 
@@ -298,6 +300,7 @@ class MoonminingAutomaticFracture(NotificationPing):
                           colour=6881024)
 
         self._corp = self._notification.character.character.corporation_id
+        self._alli = self._notification.character.character.alliance_id
         self._region = system_db.constellation.region.name
 
 
@@ -376,6 +379,7 @@ class MoonminingLaserFired(NotificationPing):
                           colour=16756480)
 
         self._corp = self._notification.character.character.corporation_id
+        self._alli = self._notification.character.character.alliance_id
         self._region = system_db.constellation.region.name
 
 
@@ -462,6 +466,7 @@ class MoonminingExtractionStarted(NotificationPing):
                           colour=16756480)
         
         self._corp = self._notification.character.character.corporation_id
+        self._alli = self._notification.character.character.alliance_id
         self._region = system_db.constellation.region.name
 
 
@@ -527,6 +532,7 @@ class StructureLostShields(NotificationPing):
                           colour=16756480)
         
         self._corp = self._notification.character.character.corporation_id
+        self._alli = self._notification.character.character.alliance_id
         self._region = system_db.constellation.region.name
 
 
@@ -592,6 +598,7 @@ class StructureLostArmor(NotificationPing):
                           colour=16756480)
         
         self._corp = self._notification.character.character.corporation_id
+        self._alli = self._notification.character.character.alliance_id
         self._region = system_db.constellation.region.name
 
 
@@ -680,7 +687,9 @@ class StructureUnderAttack(NotificationPing):
                           colour=16756480)
         
         self._corp = self._notification.character.character.corporation_id
+        self._alli = self._notification.character.character.alliance_id
         self._region = system_db.constellation.region.name
+        self.force_at_ping = True
 
 
 class SovStructureReinforced(NotificationPing):
@@ -736,6 +745,7 @@ class SovStructureReinforced(NotificationPing):
                           colour=16756480)
         
         self._corp = self._notification.character.character.corporation_id
+        self._alli = self._notification.character.character.alliance_id
         self._region = system_db.constellation.region.name
 
 
@@ -783,6 +793,7 @@ class EntosisCaptureStarted(NotificationPing):
         
         self._corp = self._notification.character.character.corporation_id
         self._region = system_db.constellation.region.name
+        self.force_at_ping = True
 
 
 class OwnershipTransferred(NotificationPing):
@@ -842,4 +853,5 @@ class OwnershipTransferred(NotificationPing):
                           colour=16756480)
         
         self._corp = self._notification.character.character.corporation_id
+        self._alli = self._notification.character.character.alliance_id
         self._region = system_db.constellation.region.name
