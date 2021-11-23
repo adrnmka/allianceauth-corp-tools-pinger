@@ -37,7 +37,7 @@ last_update = 0
 
 def get_settings():
     pc = PingerConfig.objects.get(pk=1)
-    alliances = list(pc.AllianceLimiter.all().values('alliance_id'))
+    alliances = list(pc.AllianceLimiter.all().values_list('alliance_id'))
     corporations = list(pc.CorporationLimiter.all().values_list('corporation_id'))
     min_time = pc.min_time_between_updates
 
