@@ -105,10 +105,10 @@ def bootstrap_notification_tasks():
     #TODO add app.model setting to filter for who to ping for.
     filters = []
     if len(allis) > 0:
-        filters.append(Q(character__character__alliance_id__in=allis))
+        filters.append(Q(character__alliance_id__in=allis))
     
     if len(corps) > 0:
-        filters.append(Q(character__character__corporation_id__in=allis))
+        filters.append(Q(character__corporation_id__in=allis))
 
     if len(filters) > 0:
         query = filters.pop()
