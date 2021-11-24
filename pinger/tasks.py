@@ -12,6 +12,8 @@ from django.core.cache import cache
 from allianceauth.services.tasks import QueueOnce
 from django.utils import timezone
 
+from oauthlib.oauth2.rfc6749.errors import InvalidGrantError
+
 from corptools.task_helpers.char_tasks import update_character_notifications
 from corptools.providers import esi
 from corptools.models import CharacterAudit, Notification
@@ -130,7 +132,7 @@ def bootstrap_notification_tasks():
 def queue_corporation_notification_update(corporation_id, wait_time):
     corporation_notification_update.apply_async(args=[corporation_id], priority=(TASK_PRIO+1), countdown=wait_time)
 
-@shared_task(bind=True, base=QueueOnce)
+@shared_task(bind=True, base=QueueOnce, max_retries=None)
 def corporation_notification_update(self, corporation_id):
     # get oldest token and update notifications chained with a notification check
     data = _get_cache_data_for_corp(corporation_id)
@@ -166,21 +168,37 @@ def corporation_notification_update(self, corporation_id):
 
         if not token:
             self.retry(countdown=30)
+            logger.error(f"{character_id} has no tokens, retrying in 30s")
+
+
+        try:
+            access_token = token.valid_access_token()
+        except InvalidGrantError:
+            logger.error(f"Invalid Grant on {token}, Deleting {token.character_name}'s token")
+            token.delete()
+            self.retry(countdown=30)
+
 
         _set_cache_data_for_corp(corporation_id, character_id, all_chars_in_corp, 10)
 
         types = notifications.get_available_types()
         #update notifications for this character inline.
-        notifs = esi.client.Character.get_characters_character_id_notifications(character_id=character_id,
-                                                                                             token=token.valid_access_token()).results()
+        try:
+            notifs = esi.client.Character.get_characters_character_id_notifications(character_id=character_id,
+                                                                                                token=access_token).results()
+        except:
+            logger.error(f"Failed to fetch notifications {token}, retrying in 30s")
+            self.retry(countdown=30)
 
         pingable_notifs = []
         pinged_already = set(list(Ping.objects.values_list("notification_id", flat=True)))
+        cuttoff = timezone.now() - datetime.timedelta(hours=96)
 
         for n in notifs:
-            if n.get('type') in types.keys():
-                if n.get('notification_id') not in pinged_already:
-                    pingable_notifs.append(n)
+            if n.get('timestamp') > cuttoff:
+                if n.get('type') in types.keys():
+                    if n.get('notification_id') not in pinged_already:
+                        pingable_notifs.append(n)
 
         logger.info(f"PINGER: {corporation_id} New Pings: {len(pingable_notifs)}")
 
