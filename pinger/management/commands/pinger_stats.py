@@ -41,7 +41,6 @@ class Command(BaseCommand):
 
         corps = all_member_corps_in_audit.values_list("character__corporation_id", "character__corporation_name")
 
-        self.stdout.write(f"Found {len(corps)} Valid Corps!")
 
         done = {}
         for c in corps:
@@ -53,6 +52,7 @@ class Command(BaseCommand):
                 else:
                     done[c[0]] = f"{c[1]} Not Updated Yet"
 
+        self.stdout.write(f"Found {len(done)} Valid Corps!")
 
         for id, msg in done.items():
             self.stdout.write(msg)
