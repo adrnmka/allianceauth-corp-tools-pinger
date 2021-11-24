@@ -200,7 +200,7 @@ def corporation_notification_update(self, corporation_id):
                     if n.get('notification_id') not in pinged_already:
                         pingable_notifs.append(n)
 
-        logger.info(f"PINGER: {corporation_id} New Pings: {len(pingable_notifs)}")
+        logger.info(f"PINGER: {corporation_id} Pings to process: {len(pingable_notifs)}")
 
         # did we get any?
         process_notifications.apply_async(priority=TASK_PRIO, args=[character_id, pingable_notifs])
@@ -225,6 +225,7 @@ def process_notifications(self, cid, notifs):
     for note in notifs:
         note['timestamp'] = datetime.datetime.fromisoformat(note.get('timestamp').replace("Z", "+00:00") )
         if note.get('timestamp') > cuttoff:
+            logger.info(f"PINGER: {char} Got Notification {note.get('notification_id')} {note.get('type')} {note.get('timestamp')}")
             n = Notification(character=char,
                                 notification_id=note.get(
                                     'notification_id'),
@@ -281,6 +282,7 @@ def process_notifications(self, cid, notifs):
                     hook = hook,
                     alerting = p.force_at_ping
                 )
+                logging.info(f"PINGER: Sending Ping {ping_ob}")
                 ping_ob.send_ping()
 
 
