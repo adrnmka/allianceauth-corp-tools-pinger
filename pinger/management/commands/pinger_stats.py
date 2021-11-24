@@ -49,7 +49,7 @@ class Command(BaseCommand):
                 last_char, chars, last_update = _get_cache_data_for_corp(c[0])
                 if last_char:
                     last_char_model = EveCharacter.objects.get(character_id=last_char)
-                    done[c[0]] = f"{c[1]} Total Characters: {len(chars)}, Last Character: {last_char_model.character_name} ({last_char}), Next Update: {last_update} Seconds"
+                    done[c[0]] = f"{c[1]} Total Characters : {len(chars)}, Last Character: {last_char_model.character_name} ({last_char}), Next Update: {last_update} Seconds"
                 else:
                     done[c[0]] = f"{c[1]} Not Updated Yet"
 
