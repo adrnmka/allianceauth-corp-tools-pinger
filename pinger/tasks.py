@@ -265,14 +265,17 @@ def process_notifications(self, cid, notifs):
 
                 if corp_filter is not None and len(corporations) > 0:
                     if corp_filter not in corporations:
+                        logging.info(f"PINGER: ignroing Ping {p} corp filter")
                         continue
 
                 if alli_filter is not None and len(alliances) > 0:
-                    if corp_filter not in alliances:
+                    if alli_filter not in alliances:
+                        logging.info(f"PINGER: ignroing Ping {p} alli filter")
                         continue
 
                 if region_filter is not None and len(regions) > 0:
                     if region_filter not in regions:
+                        logging.info(f"PINGER: ignroing Ping {p} region filter")
                         continue
 
                 ping_ob = Ping.objects.create(
