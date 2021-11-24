@@ -43,17 +43,20 @@ class Command(BaseCommand):
 
 
         done = {}
+        seen_cid = set()
         for c in corps:
-            if c[1] not in done:
+            if c[0] not in seen_cid:
+                seen_cid.add(c[0])
                 last_char, chars, last_update = _get_cache_data_for_corp(c[0])
                 if last_char:
                     last_char_model = EveCharacter.objects.get(character_id=last_char)
-                    done[c[0]] = f"{c[1]} Total Characters : {len(chars)}, Last Character: {last_char_model.character_name} ({last_char}), Next Update: {last_update} Seconds"
+                    done[c[1]] = f"{c[1]} Total Characters : {len(chars)}, Last Character: {last_char_model.character_name} ({last_char}), Next Update: {last_update} Seconds"
                 else:
-                    done[c[0]] = f"{c[1]} Not Updated Yet"
+                    done[c[1]] = f"{c[1]} Not Updated Yet"
 
         self.stdout.write(f"Found {len(done)} Valid Corps!")
-
-        for id, msg in done.items():
-            self.stdout.write(msg)
+        sorted_keys = list(done.keys())
+        sorted_keys.sort()
+        for id in sorted_keys:
+            self.stdout.write(done[id])
 
