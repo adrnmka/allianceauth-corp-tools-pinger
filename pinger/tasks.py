@@ -77,9 +77,9 @@ def _get_cache_data_for_corp(corp_id):
         last_char = cached_data.get("last_char")
         char_array = cached_data.get("char_array")
         unixtime = time.mktime(timezone.now().timetuple())
-        last_update = cached_data.get("last_update", 0)
-        last_update = unixtime - last_update
-        return (last_char, char_array, last_update)
+        next_update = cached_data.get("next_update", 0)
+        next_update = next_update - unixtime
+        return (last_char, char_array, next_update)
     else:
         return (0, [], -661)
 
@@ -89,7 +89,7 @@ def _set_cache_data_for_corp(corp_id, last_char, char_array, next_update):
         "char_array": char_array,
         "next_update": time.mktime(timezone.now().timetuple()) + next_update
     }
-    cache.set(_build_corp_cache_id(corp_id), json.dumps(data), CACHE_TIME_SECONDS)
+    cache.set(_build_corp_cache_id(corp_id), json.dumps(data), CACHE_TIME_SECONDS + 60)
 
 
 @shared_task
@@ -122,8 +122,8 @@ def bootstrap_notification_tasks():
 
     # fire off tasks for each corp with active models
     for cid in corps:
-        last_char, char_array, last_update = _get_cache_data_for_corp(cid)
-        if last_update < -660:  # 11 min since last update should have fired.
+        last_char, char_array, next_update = _get_cache_data_for_corp(cid)
+        if next_update < -60:  # 1 min since last update should have fired.
             logger.warning(f"PINGER: {cid} Out of Sync, Starting back up!")
             corporation_notification_update.apply_async(args=[cid], priority=TASK_PRIO+1)
 
