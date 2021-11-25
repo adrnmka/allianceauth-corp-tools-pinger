@@ -62,11 +62,11 @@ def _get_head_id(char_id):
 def _build_char_cache_id(char_id):
     return f"ct-pingger-char-{char_id}"
 
-def _get_last_head_id(char_id):
+def _get_last_cache_expire(char_id):
     return cache.get(_build_char_cache_id(char_id), 0)
 
-def _set_last_head_id(char_id, id):
-    return cache.set(_build_char_cache_id(char_id), id)
+def _set_last_cache_expire(char_id, expires):
+    return cache.set(_build_char_cache_id(char_id), expires)
 
 def _build_corp_cache_id(corp_id):
     return f"ct-pingger-corp-{corp_id}"
@@ -176,9 +176,9 @@ def corporation_notification_update(self, corporation_id):
             access_token = token.valid_access_token()
         except InvalidGrantError:
             logger.error(f"Invalid Grant on {token}, Deleting {token.character_name}'s token")
-            token.delete()
-            self.retry(countdown=30)
+            self.retry(countdown=10)
 
+        last_expire = _get_last_cache_expire(character_id)
         _set_cache_data_for_corp(corporation_id, character_id, all_chars_in_corp, 10)
 
         types = notifications.get_available_types()
@@ -193,16 +193,21 @@ def corporation_notification_update(self, corporation_id):
             self.retry(countdown=60)
 
         now = time.mktime(timezone.now().timetuple())
-        secs_till_expire = http2time(response.headers.get('Expires')) - now
-        logger.info(f"PINGER: CACHE: Got cached time of {secs_till_expire}s, for {token.character_name}")
+        next_expire = http2time(response.headers.get('Expires'))
+            
+        secs_till_expire = next_expire - now
 
-        if secs_till_expire < 30:
-            logger.warning(f"PINGER: CACHE: Got almost expired cached notifications {token.character_name}, retrying with this character in {secs_till_expire} seconds")
-            _set_cache_data_for_corp(corporation_id, last_character, all_chars_in_corp, 0)
-            self.retry(countdown=secs_till_expire+1)
-        elif secs_till_expire < 570:
-            logger.warning(f"PINGER: CACHE: Got cached notifications {token.character_name}, retrying with next character")
-            self.retry(countdown=1)
+        if next_expire == last_expire:
+            logger.info(f"PINGER: CACHE: Same Cache as last update.")
+            if secs_till_expire < 30:
+                logger.warning(f"PINGER: CACHE: Almost expired cache {token.character_name}, retrying with this character in {secs_till_expire + 1} seconds")
+                _set_cache_data_for_corp(corporation_id, last_character, all_chars_in_corp, 0)
+                self.retry(countdown=secs_till_expire+1)
+            elif secs_till_expire < 570:
+                logger.warning(f"PINGER: CACHE: Mid cache cycle {token.character_name}, retrying with next character")
+                self.retry(countdown=1)
+                
+        _set_last_cache_expire(character_id, next_expire)
 
         pingable_notifs = []
         pinged_already = set(list(Ping.objects.values_list("notification_id", flat=True)))
