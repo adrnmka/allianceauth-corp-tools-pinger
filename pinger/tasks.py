@@ -199,7 +199,7 @@ def corporation_notification_update(self, corporation_id):
         if secs_till_expire < 30:
             logger.warning(f"PINGER: CACHE: Got almost expired cached notifications {token.character_name}, retrying with this character in {secs_till_expire} seconds")
             _set_cache_data_for_corp(corporation_id, last_character, all_chars_in_corp, 0)
-            self.retry(countdown=secs_till_expire)
+            self.retry(countdown=secs_till_expire+1)
         elif secs_till_expire < 570:
             logger.warning(f"PINGER: CACHE: Got cached notifications {token.character_name}, retrying with next character")
             self.retry(countdown=1)
