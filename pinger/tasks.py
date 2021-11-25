@@ -22,6 +22,8 @@ from django.db.models import Q
 from django.db.models import Max
 from pinger.models import DiscordWebhook, Ping, PingerConfig
 
+from http.cookiejar import http2time
+
 from . import notifications
 
 TZ_STRING = "%Y-%m-%dT%H:%M:%SZ"
@@ -170,7 +172,6 @@ def corporation_notification_update(self, corporation_id):
             self.retry(countdown=30)
             logger.error(f"{character_id} has no tokens, retrying in 30s")
 
-
         try:
             access_token = token.valid_access_token()
         except InvalidGrantError:
@@ -178,16 +179,24 @@ def corporation_notification_update(self, corporation_id):
             token.delete()
             self.retry(countdown=30)
 
-
         _set_cache_data_for_corp(corporation_id, character_id, all_chars_in_corp, 10)
 
         types = notifications.get_available_types()
         #update notifications for this character inline.
         try:
             notifs = esi.client.Character.get_characters_character_id_notifications(character_id=character_id,
-                                                                                                token=access_token).results()
-        except:
-            logger.error(f"Failed to fetch notifications {token}, retrying in 30s")
+                                                                                                token=access_token)
+            notifs.request_config.also_return_response = True
+            notifs, response = notifs.results()
+        except Exception as e:
+            logger.warning(f"PINGER: Failed to fetch notifications {token.character_name}, retrying in 30s with next character, ({e})")
+            self.retry(countdown=30)
+
+        now = time.mktime(timezone.now().timetuple())
+        secs_till_expire = http2time(response.headers.get('Expires')) - now
+        logger.info(f"PINGER: CACHE: Got cached time of {secs_till_expire}s, for {token.character_name}")
+        if secs_till_expire < 570:
+            logger.warning(f"PINGER: CACHE: Got cached notifications {token.character_name}, retrying in 30s with next character")
             self.retry(countdown=30)
 
         pingable_notifs = []
