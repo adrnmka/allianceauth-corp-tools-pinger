@@ -189,15 +189,20 @@ def corporation_notification_update(self, corporation_id):
             notifs.request_config.also_return_response = True
             notifs, response = notifs.results()
         except Exception as e:
-            logger.warning(f"PINGER: Failed to fetch notifications {token.character_name}, retrying in 30s with next character, ({e})")
-            self.retry(countdown=30)
+            logger.warning(f"PINGER: Failed to fetch notifications {token.character_name}, retrying in 60s with next character, ({e})")
+            self.retry(countdown=60)
 
         now = time.mktime(timezone.now().timetuple())
         secs_till_expire = http2time(response.headers.get('Expires')) - now
         logger.info(f"PINGER: CACHE: Got cached time of {secs_till_expire}s, for {token.character_name}")
-        if secs_till_expire < 570:
-            logger.warning(f"PINGER: CACHE: Got cached notifications {token.character_name}, retrying in 30s with next character")
-            self.retry(countdown=30)
+
+        if secs_till_expire < 30:
+            logger.warning(f"PINGER: CACHE: Got almost expired cached notifications {token.character_name}, retrying with this character in {secs_till_expire} seconds")
+            _set_cache_data_for_corp(corporation_id, last_character, all_chars_in_corp, 0)
+            self.retry(countdown=secs_till_expire)
+        elif secs_till_expire < 570:
+            logger.warning(f"PINGER: CACHE: Got cached notifications {token.character_name}, retrying with next character")
+            self.retry(countdown=1)
 
         pingable_notifs = []
         pinged_already = set(list(Ping.objects.values_list("notification_id", flat=True)))
