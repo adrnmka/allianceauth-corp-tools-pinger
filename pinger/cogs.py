@@ -66,7 +66,7 @@ class PingerCog(commands.Cog):
                 else:
                     done[c[1]] = f"{c[1]} Not Updated Yet"
 
-        await ctx.message.reply(f"Found {len(done)} Valid Corps!")
+        await ctx.message.reply(f"Found {len(seen_cid)} Valid Corps! {len(done)} have sync issues.")
         sorted_keys = list(done.keys())
         sorted_keys.sort()
 
