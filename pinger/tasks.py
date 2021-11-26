@@ -71,7 +71,6 @@ def _set_last_cache_expire(char_id, expires):
 def _build_corp_cache_id(corp_id):
     return f"ct-pingger-corp-{corp_id}"
 
-
 def _get_cache_data_for_corp(corp_id):
     cached_data = cache.get(_build_corp_cache_id(corp_id), False)
     if cached_data:
@@ -245,6 +244,7 @@ def process_notifications(self, cid, notifs):
         note['timestamp'] = datetime.datetime.fromisoformat(note.get('timestamp').replace("Z", "+00:00") )
         if note.get('timestamp') > cuttoff:
             logger.info(f"PINGER: {char} Got Notification {note.get('notification_id')} {note.get('type')} {note.get('timestamp')}")
+
             n = Notification(character=char,
                                 notification_id=note.get(
                                     'notification_id'),
@@ -334,6 +334,12 @@ def _get_cooloff_time(wh_id):
 @shared_task(bind=True, max_retries=None)
 def send_ping(self, ping_id):
     ping_ob = Ping.objects.get(id=ping_id)
+    saved = cache.get_client("default").sadd("ct-pinger-ping-lock-set", ping_ob.notification_id)
+    if saved == 0:
+        logger.info(f"PINGER: DUPLICATE skipping {ping_ob.notification_id}")
+        ping_ob.ping_sent = True
+        ping_ob.save()
+        return
 
     wh_sleep = _get_cooloff_time(ping_ob.hook.id)
     if wh_sleep > 0:
@@ -366,12 +372,14 @@ def send_ping(self, ping_id):
         ping_ob.ping_sent = True
         ping_ob.save()
     elif response.status_code == 429:
+        saved = cache.get_client("default").srem("ct-pinger-ping-lock-set", ping_ob.notification_id)
         errors = json.loads(response.content.decode('utf-8'))
         wh_sleep = (int(errors['retry_after']) / 1000) + 0.15
         logger.warning(f"Webhook rate limited: trying again in {wh_sleep} seconds...")
         _set_wh_cooloff(ping_ob.hook.id, wh_sleep)
         self.retry(countdown=wh_sleep)
     else:
+        saved = cache.get_client("default").srem("ct-pinger-ping-lock-set", ping_ob.notification_id)
         logger.error(f"{ping_ob.notification_id} failed ({response.status_code}) to: {url}")
         response.raise_for_status()
     # TODO 404/403/500 etc etc etc etc
