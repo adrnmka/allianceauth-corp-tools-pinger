@@ -855,3 +855,81 @@ class OwnershipTransferred(NotificationPing):
         self._corp = self._notification.character.character.corporation_id
         self._alli = self._notification.character.character.alliance_id
         self._region = system_db.constellation.region.name
+
+
+class TowerAlertMsg(NotificationPing):
+    category = "starbase-attack"  # starbase Alerts
+
+    """
+    TowerAlertMsg Example
+
+    aggressorAllianceID: 933731581
+    aggressorCorpID: 98656901
+    aggressorID: 109390934
+    armorValue: 0.35075108372869623
+    hullValue: 1.0
+    moonID: 40255844
+    shieldValue: 6.249723757441368e-10
+    solarSystemID: 30004040
+    typeID: 27786
+    """
+
+    def build_ping(self):
+        system_db = ctm.MapSystem.objects.get(system_id=self._data['solarSystemID'])
+
+        system_name = system_db.name
+        region_name = system_db.constellation.region.name
+
+        system_name = f"[{system_name}](http://evemaps.dotlan.net/system/{system_name.replace(' ', '_')})"
+        region_name = f"[{region_name}](http://evemaps.dotlan.net/region/{region_name.replace(' ', '_')})"
+
+        moon, _ = ctm.MapSystemMoon.objects.get_or_create_from_esi(self._data['moonID'])
+
+        structure_type, _ = ctm.EveItemType.objects.get_or_create_from_esi(self._data['structureTypeID'])
+
+        title = "Starbase Under Attack!"
+        shld = float(self._data['shieldValue'])
+        armr = float(self._data['armorValue'])
+        hull = float(self._data['hullValue'])
+        body = "Structure under Attack!\n[ S: {0:.2f}% A: {1:.2f}% H: {2:.2f}% ]".format(shld, armr, hull)
+
+        corp_id = self._notification.character.character.corporation_id
+        corp_ticker = self._notification.character.character.corporation_ticker
+        corp_name = "[%s](https://zkillboard.com/search/%s/)" % \
+                                    (self._notification.character.character.corporation_name,
+                                     self._notification.character.character.corporation_name.replace(" ", "%20"))
+        footer = {"icon_url": "https://imageserver.eveonline.com/Corporation/%s_64.png" % (str(corp_id)),
+                  "text": "%s (%s)" % (self._notification.character.character.corporation_name, corp_ticker)}
+
+        attacking_char, _ = ctm.EveName.objects.get_or_create_from_esi(self._data['aggressorID'])
+        attacking_char_corp, _ = ctm.EveName.objects.get_or_create_from_esi(self._data['aggressorCorpID'])
+        attacking_alliance_name = ""
+        if self._data.get('aggressorAllianceID', False):
+            attacking_char_alliance, _ = ctm.EveName.objects.get_or_create_from_esi(self._data['aggressorAllianceID'])
+            attacking_alliance_name = attacking_char_alliance.name
+
+        attackerStr = "*[%s](https://zkillboard.com/search/%s/)*, [%s](https://zkillboard.com/search/%s/), **[%s](https://zkillboard.com/search/%s/)**" % \
+                                                    (attacking_char.name,
+                                                    attacking_char.name.replace(" ", "%20"),
+                                                    attacking_char_corp.name,
+                                                    attacking_char_corp.name.replace(" ", "%20"),
+                                                    attacking_alliance_name,
+                                                    attacking_alliance_name.replace(" ", "%20"))
+
+        fields = [{'name': 'System', 'value': system_name, 'inline': True},
+                    {'name': 'Region', 'value': region_name, 'inline': True},
+                    {'name': 'Type', 'value': structure_type.name, 'inline': True},
+                    {'name': 'Attacker', 'value': attackerStr, 'inline': False}]
+
+        self.package_ping(title,
+                          body,
+                          self._notification.timestamp,
+                          fields=fields,
+                          footer=footer,
+                          colour=16756480)
+        
+        self._corp = self._notification.character.character.corporation_id
+        self._alli = self._notification.character.character.alliance_id
+        self._region = system_db.constellation.region.name
+        self.force_at_ping = True
+
