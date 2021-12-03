@@ -1,10 +1,16 @@
+from django.db import models
 import yaml
 import json
 import datetime
 
 from corptools import models as ctm
+from .models import MutedStructure
 
 from django.utils.html import strip_tags
+
+
+class MutedException(Exception):
+    pass
 
 
 def filetime_to_dt(ft):
@@ -633,6 +639,16 @@ class StructureUnderAttack(NotificationPing):
     """
 
     def build_ping(self):
+        try:
+            muted = MutedStructure.objects.get(structure_id=self._data['structureID'])
+            if muted.expired():
+                muted.delete()
+            else:
+                raise MutedException()
+        except MutedStructure.DoesNotExist:
+            # no mutes move on
+            pass
+
         system_db = ctm.MapSystem.objects.get(system_id=self._data['solarsystemID'])
 
         system_name = system_db.name

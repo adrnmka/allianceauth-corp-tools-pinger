@@ -3,6 +3,8 @@ from django.db import models
 from allianceauth.eveonline.models import EveAllianceInfo, EveCorporationInfo
 from corptools.models import MapRegion
 from django.db.models.deletion import CASCADE
+from django.utils import timezone
+from datetime import timedelta
 
 
 class PingType(models.Model):
@@ -77,3 +79,10 @@ class PingerConfig(models.Model):
         self.pk = self.id = 1 # If this happens to be deleted and recreated, force it to be 1
         return super().save(*args, **kwargs)
 
+
+class MutedStructure(models.Model):
+    structure_id = models.BigIntegerField()
+    date_added = models.DateTimeField(auto_now=True)
+
+    def expired(self):
+        return timezone.now() > (self.date_added + timedelta(hours=48))

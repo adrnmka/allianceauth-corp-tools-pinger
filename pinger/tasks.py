@@ -236,7 +236,7 @@ def corporation_notification_update(self, corporation_id):
 
 @shared_task(bind=True, base=QueueOnce)
 def process_notifications(self, cid, notifs):
-    cuttoff = timezone.now() - datetime.timedelta(hours=96)
+    cuttoff = timezone.now() - datetime.timedelta(hours=1)
     char = CharacterAudit.objects.get(character__character_id=cid)
     new_notifs = []
 
@@ -264,10 +264,13 @@ def process_notifications(self, cid, notifs):
     for n in new_notifs:
         if n.notification_id not in pinged_already:
             pinged_already.add(n.notification_id)
-            note = types[n.notification_type](n)
-            if n.notification_type not in pings:
-                pings[n.notification_type] = []
-            pings[n.notification_type].append(note)
+            try:
+                note = types[n.notification_type](n)
+                if n.notification_type not in pings:
+                    pings[n.notification_type] = []
+                pings[n.notification_type].append(note)
+            except notifications.MutedException:
+                pass
 
     # send them to webhooks as needed
     for k, l in pings.items():

@@ -1,4 +1,5 @@
 # Cog Stuff
+from aadiscordbot.cogs.utils.decorators import sender_has_perm
 from discord.ext import commands
 # AA Contexts
 import pprint
@@ -8,6 +9,8 @@ from django.db.models.query_utils import Q
 from allianceauth.eveonline.models import EveCharacter
 
 from pinger.tasks import get_settings, _get_cache_data_for_corp
+from pinger.models import MutedStructure
+from corptools.models import EveLocation
 
 from aadiscordbot import app_settings
 
@@ -21,6 +24,20 @@ class PingerCog(commands.Cog):
     """
     def __init__(self, bot):
         self.bot = bot
+
+    @commands.command(pass_context=True)
+    @sender_has_perm('corptools.corp_hr')
+    async def mute_structure(self, ctx):
+
+        input_name = ctx.message.content[16:]
+        locs = EveLocation.objects.filter(location_name=input_name)
+        if locs.count() > 0:
+            for loc in locs:
+                muted, _ = MutedStructure.objects.update_or_create(structure_id=loc.location_id)
+            await ctx.message.reply("Muted for 48hours")
+        else:
+            await ctx.message.reply("Could not find structure")
+
 
     @commands.command(pass_context=True)
     async def pinger_stats(self, ctx):
