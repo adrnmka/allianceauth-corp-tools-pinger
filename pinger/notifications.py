@@ -1,12 +1,18 @@
+from logging import exception
 from django.db import models
 import yaml
 import json
 import datetime
 
 from corptools import models as ctm
+from corptools.task_helpers.update_tasks import fetch_location_name
+
 from .models import MutedStructure
 
 from django.utils.html import strip_tags
+
+import logging
+logger = logging.getLogger(__name__)
 
 
 class MutedException(Exception):
@@ -660,9 +666,14 @@ class StructureUnderAttack(NotificationPing):
         structure_type, _ = ctm.EveItemType.objects.get_or_create_from_esi(self._data['structureTypeID'])
 
         try:
-            structure_name = ctm.EveLocation.objects.get(location_id=self._data['structureID']).location_name
-        except ctm.EveLocation.DoesNotExist:
-            # TODO find the name via esi and create the model
+            structure_name = fetch_location_name(self._data['structureID'], "solar_system", self._notification.character.character.character_id)
+            if structure_name:
+                structure_name = structure_name.location_name
+            else:
+                structure_name = "Unknown"
+
+        except Exception as e:
+            logger.error(f"PINGER: Error fetching structure name? {e}")
             structure_name = "Unknown"
 
         title = structure_name
