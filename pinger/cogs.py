@@ -25,18 +25,19 @@ class PingerCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.command(pass_context=True)
+    @commands.command(pass_context=True, aliases=['mute', 'fuckoff', 'pissoff', 'goaway', 'shutup'])
     @sender_has_perm('corptools.corp_hr')
     async def mute_structure(self, ctx):
 
-        input_name = ctx.message.content[16:]
+        cmds = ctx.message.content.split(" ")[1:]
+        input_name = " ".join(cmds)
         locs = EveLocation.objects.filter(location_name=input_name)
         if locs.count() > 0:
             for loc in locs:
                 muted, _ = MutedStructure.objects.update_or_create(structure_id=loc.location_id)
-            await ctx.message.reply("Muted for 48hours")
+            await ctx.message.reply(f"`{input_name}` Muted for 48hours")
         else:
-            await ctx.message.reply("Could not find structure")
+            await ctx.message.reply(f"`{input_name}` Could not find structure")
 
 
     @commands.command(pass_context=True)
