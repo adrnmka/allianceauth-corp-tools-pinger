@@ -18,17 +18,19 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-class PingerCog(commands.Cog):
+class Pinger(commands.Cog):
     """
     All about pinger!
     """
     def __init__(self, bot):
         self.bot = bot
 
-    @commands.command(pass_context=True, aliases=['mute', 'fuckoff', 'pissoff', 'goaway', 'shutup'])
+    @commands.command(pass_context=True, aliases=['fuckoff', 'pissoff', 'goaway', 'shutup'])
     @sender_has_perm('corptools.corp_hr')
-    async def mute_structure(self, ctx):
-
+    async def mute(self, ctx):
+        """
+        Mute a structure for 48h cause its being annoying.
+        """
         cmds = ctx.message.content.split(" ")[1:]
         input_name = " ".join(cmds)
         locs = EveLocation.objects.filter(location_name=input_name)
@@ -40,8 +42,8 @@ class PingerCog(commands.Cog):
             await ctx.message.reply(f"`{input_name}` Could not find structure")
 
 
-    @commands.command(pass_context=True)
-    async def pinger_stats(self, ctx):
+    @commands.command(pass_context=True, hidden=True)
+    async def pingerstats(self, ctx):
 
         if ctx.message.author.id not in app_settings.get_admins():  # https://media1.tenor.com/images/1796f0fa0b4b07e51687fad26a2ce735/tenor.gif
             return await ctx.message.add_reaction(chr(0x1F44E))
@@ -98,4 +100,4 @@ class PingerCog(commands.Cog):
             await ctx.send(output)
 
 def setup(bot):
-    bot.add_cog(PingerCog(bot))
+    bot.add_cog(Pinger(bot))
