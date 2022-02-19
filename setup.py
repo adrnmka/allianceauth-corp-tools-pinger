@@ -1,6 +1,9 @@
+from pinger import __version__
 import os
 from setuptools import find_packages, setup
 install_requires = [
+    'allianceauth>=2.9.0',
+    'allianceauth-corptools>=2.1.2'
 ]
 with open(os.path.join(os.path.dirname(__file__), 'README.md')) as readme:
     README = readme.read()
@@ -8,8 +11,8 @@ with open(os.path.join(os.path.dirname(__file__), 'README.md')) as readme:
 os.chdir(os.path.normpath(os.path.join(os.path.abspath(__file__), os.pardir)))
 
 setup(
-    name='corptools-pinger',
-    version='0.0.1',
+    name='allianceauth-corptools-pinger',
+    version=__version__,
     packages=find_packages(),
     include_package_data=True,
     install_requires=install_requires,
@@ -17,7 +20,7 @@ setup(
     description='Alliance Auth Plugin',
     long_description=README,
     long_description_content_type="text/markdown",
-    url='',
+    url='https://github.com/Solar-Helix-Independent-Transport/allianceauth-corp-tools-pinger',
     author='AaronKable',
     author_email='aaronkable@gmail.com',
     classifiers=[
@@ -32,4 +35,3 @@ setup(
         'Topic :: Internet :: WWW/HTTP :: Dynamic Content',
     ],
 )
-
