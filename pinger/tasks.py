@@ -4,11 +4,13 @@ import logging
 import json
 from esi.models import Token
 import requests
+import hashlib
 
 from celery import shared_task
 from django.core.cache import cache
 from allianceauth.services.tasks import QueueOnce
 from django.utils import timezone
+from django.core.exceptions import ObjectDoesNotExist
 
 from oauthlib.oauth2.rfc6749.errors import InvalidGrantError
 
@@ -17,7 +19,7 @@ from corptools.models import CharacterAudit, CorporationAudit, Structure
 
 from django.db.models import Q
 from django.db.models import Max
-from pinger.models import DiscordWebhook, FuelPingRecord, Ping, PingerConfig
+from pinger.models import DiscordWebhook, FuelPingRecord, Ping, PingerConfig, StructureLoThreshold
 
 from http.cookiejar import http2time
 
@@ -29,6 +31,9 @@ TZ_STRING = "%Y-%m-%dT%H:%M:%SZ"
 CACHE_TIME_SECONDS = 10*60
 
 TASK_PRIO = 3
+
+LOOK_BACK_HOURS = 6
+
 
 logger = logging.getLogger(__name__)
 
@@ -217,10 +222,136 @@ def corporation_fuel_check(self, corporation_id):
                 old.delete()
 
 
+def get_lo_key():
+    return "LO_LEVEL_HASH_KEY"
+
+
+def get_lo_ping_state():
+    return "21"
+
+
+def set_lo_ping_state(hash):
+    return
+
+
+def sort_structure_list(struct_list):
+    return [x.name for x in sorted(struct_list, key=lambda x: x.name)]
+
+
+@shared_task(bind=True, base=QueueOnce, max_retries=None)
+def corporation_lo_check(self, corporation_id):
+    logger.info(
+        f"PINGER: Starting LO Checks")
+    fuel_structures = Structure.objects.filter(
+        type_name_id=35841, corporation__corporation__corporation_id=corporation_id).order_by("name")
+
+    low = []
+    crit = []
+    unknown = []
+
+    for struct in fuel_structures:
+        th_low = 1500000
+        th_crit = 25000
+
+        try:
+            th_low = struct.lo_th.low
+            th_crit = struct.lo_th.critical
+        except ObjectDoesNotExist:
+            pass
+
+        loLeft = struct.ozone_level
+        if loLeft == False:
+            unknown.append(struct)
+            continue
+
+        if loLeft < th_low:
+            if 1 <= loLeft < th_crit:
+                crit.append(struct)
+                continue
+            elif th_crit <= loLeft:
+                low.append(struct)
+                continue
+        else:
+            pass
+
+    if len(crit) or len(low) or len(unknown):
+        # build it!
+        sorted_arrays = (
+            sort_structure_list(crit),
+            sort_structure_list(low),
+            sort_structure_list(unknown)
+        )
+
+        sorted_hash = hashlib.md5(json.dumps(
+            sorted_arrays).encode()).hexdigest()
+
+        if get_lo_ping_state() == sorted_hash:
+            set_lo_ping_state(sorted_hash)
+            return
+        else:
+            # send pings
+            embed = {'color': 15158332,
+                     'title': "Liquid Ozone State",
+                     'description': ""
+                     }
+            gap = "               "
+            desc = []
+            if len(crit):
+                desc.append("\n**Critical Ozone Levels:**")
+                crit_block = [
+                    f"{s.ozone_level:,}{gap[len(f'{s.ozone_level:,}'):15]}{s.name}" for s in crit]
+                crit_block = "\n".join(crit_block)
+                desc.append(f'```Liquid Ozone   Structure\n{crit_block}```')
+            if len(low):
+                desc.append("\n**Low Ozone Levels:**")
+                low_block = [
+                    f"{s.ozone_level:,}{gap[len(f'{s.ozone_level:,}'):15]}{s.name}" for s in low]
+                low_block = "\n".join(low_block)
+                desc.append(f'```Liquid Ozone   Structure\n{low_block}```')
+            if len(unknown):
+                desc.append("\n**Unknown Ozone Levels:**")
+                unknown_block = [f" -             {s.name}" for s in low]
+                unknown_block = "\n".join[unknown_block]
+                desc.append(f'```~~Liquid Ozone~~   Structure\n{low_block}```')
+
+            embed["description"] = "\n".join(desc)
+
+            set_lo_ping_state(sorted_hash)
+
+            webhooks = DiscordWebhook.objects.filter(lo_pings=True)\
+                .prefetch_related("alliance_filter", "corporation_filter", "region_filter")
+            logger.info(
+                f"PINGER: FUEL Webhooks {webhooks.count()}")
+
+            for hook in webhooks:
+                corporations = hook.corporation_filter.all(
+                ).values_list("corporation_id", flat=True)
+
+                corp_filter = corporation_id
+
+                if corp_filter is not None and len(corporations) > 0:
+                    if corp_filter not in corporations:
+                        logger.info(
+                            f"PINGER: FUEL  Skipped {self.structure.name} Corp {corp_filter} not in {corporations}")
+                        continue
+
+                alert = False
+                p = Ping.objects.create(notification_id=-1,
+                                        hook=hook,
+                                        body=json.dumps(embed),
+                                        time=timezone.now(),
+                                        alerting=alert
+                                        )
+                p.send_ping()
+
+                return embed
+
+
 @shared_task(bind=True, base=QueueOnce, max_retries=None)
 def corporation_notification_update(self, corporation_id):
     # get oldest token and update notifications chained with a notification check
     data = _get_cache_data_for_corp(corporation_id)
+    CUTTOFF = timezone.now() - datetime.timedelta(hours=LOOK_BACK_HOURS)
 
     if data:
         last_character = data[0]
@@ -231,6 +362,10 @@ def corporation_notification_update(self, corporation_id):
         all_chars_in_corp = set(CharacterAudit.objects.filter(characterroles__station_manager=True,
                                                               character__corporation_id=corporation_id,
                                                               active=True).values_list("character__character_id", flat=True))
+
+        all_hr_chars = list(set(CharacterAudit.objects.filter(characterroles__personnel_manager=True,
+                                                              character__corporation_id=corporation_id,
+                                                              active=True).values_list("character__character_id", flat=True)))
 
         all_hr_chars = list(set(CharacterAudit.objects.filter(characterroles__personnel_manager=True,
                                                               character__corporation_id=corporation_id,
@@ -301,7 +436,7 @@ def corporation_notification_update(self, corporation_id):
         next_expire = http2time(response.headers.get('Expires'))
 
         secs_till_expire = next_expire - now
-
+        print(secs_till_expire)
         if next_expire == last_expire:
             logger.info(f"PINGER: CACHE: Same Cache as last update.")
         if secs_till_expire < 30:
@@ -320,12 +455,13 @@ def corporation_notification_update(self, corporation_id):
         pingable_notifs = []
         pinged_already = set(
             list(Ping.objects.values_list("notification_id", flat=True)))
-        cuttoff = timezone.now() - datetime.timedelta(hours=1)
 
         for n in notifs:
-            if n.get('timestamp') > cuttoff:
+            if n.get('timestamp') > CUTTOFF:
                 if n.get('type') in types.keys():
                     if n.get('notification_id') not in pinged_already:
+                        n['time'] = datetime.datetime.timestamp(
+                            n.get('timestamp'))
                         pingable_notifs.append(n)
 
         logger.info(
@@ -368,14 +504,15 @@ class Notification:
 
 @shared_task(bind=True, base=QueueOnce)
 def process_notifications(self, cid, notifs):
-    cuttoff = timezone.now() - datetime.timedelta(hours=1)
     char = CharacterAudit.objects.get(character__character_id=cid)
     new_notifs = []
+    CUTTOFF = timezone.now() - datetime.timedelta(hours=LOOK_BACK_HOURS)
 
     for note in notifs:
-        note['timestamp'] = datetime.datetime.fromisoformat(
-            note.get('timestamp').replace("Z", "+00:00"))
-        if note.get('timestamp') > cuttoff:
+        if not isinstance(note['timestamp'], datetime.datetime):
+            note['timestamp'] = datetime.datetime.fromtimestamp(
+                note.get('time'), tz=datetime.timezone.utc)
+        if note.get('timestamp') > CUTTOFF:
             logger.info(
                 f"PINGER: {char} Got Notification {note.get('notification_id')} {note.get('type')} {note.get('timestamp')}")
 
@@ -391,7 +528,7 @@ def process_notifications(self, cid, notifs):
     # grab all notifications within scope.
     types = notifications.get_available_types()
     pinged_already = set(list(Ping.objects.filter(
-        time__gte=cuttoff).values_list("notification_id", flat=True)))
+        time__gte=(CUTTOFF-datetime.timedelta(days=1))).values_list("notification_id", flat=True)))
     # parse them into the parsers
     for n in new_notifs:
         if n.notification_id not in pinged_already:
@@ -443,6 +580,11 @@ def process_notifications(self, cid, notifs):
                 )
                 logging.info(f"PINGER: Sending Ping {ping_ob}")
                 ping_ob.send_ping()
+                try:
+                    if p.timer:
+                        p.timer.save()
+                except Exception as e:
+                    logger.exception("PINGER: Faiiled to add Timer...")
 
 
 def _build_wh_cache_key(wh_id):
@@ -471,6 +613,8 @@ def _get_cooloff_time(wh_id):
 @shared_task(bind=True, max_retries=None)
 def send_ping(self, ping_id):
     ping_ob = Ping.objects.get(id=ping_id)
+    CUTTOFF = timezone.now() - datetime.timedelta(hours=LOOK_BACK_HOURS)
+
     if ping_ob.notification_id > 0:
         saved = cache_client.sadd(
             "ct-pinger-ping-lock-set", f"{ping_id}{ping_ob.notification_id}")
@@ -490,8 +634,11 @@ def send_ping(self, ping_id):
     if ping_ob.ping_sent == True:
         return "Already done!"
 
+    if ping_ob.time < CUTTOFF:
+        return "TOO OLD!"
+
     alertText = ""
-    if ping_ob.alerting == True:
+    if ping_ob.alerting and not ping_ob.hook.no_at_pings:
         alertText = '"content": "@here", '
 
     payload = '{%s"embeds": [%s]}' % (

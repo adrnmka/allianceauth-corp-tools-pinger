@@ -1,4 +1,5 @@
 import json
+
 from django.core.exceptions import ValidationError
 from django.db import models
 from allianceauth.eveonline.models import EveAllianceInfo, EveCorporationInfo
@@ -40,6 +41,11 @@ class DiscordWebhook(models.Model):
 
     fuel_pings = models.BooleanField(default=False)
     lo_pings = models.BooleanField(default=False)
+
+    no_at_pings = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"{self.nickname} - {self.discord_webhook[-10:]}"
 
 
 class Ping(models.Model):
@@ -205,6 +211,9 @@ class PingerConfig(models.Model):
         self.pk = self.id = 1  # If this happens to be deleted and recreated, force it to be 1
         return super().save(*args, **kwargs)
 
+    def __str__(self):
+        return f"Pinger Configuration"
+
 
 class MutedStructure(models.Model):
     structure_id = models.BigIntegerField()
@@ -212,3 +221,16 @@ class MutedStructure(models.Model):
 
     def expired(self):
         return timezone.now() > (self.date_added + timedelta(hours=48))
+
+    def __str__(self):
+        return f"{self.structure_id}"
+
+
+class StructureLoThreshold(models.Model):
+    structure = models.OneToOneField(
+        Structure, related_name="lo_th", on_delete=models.CASCADE)
+    low = models.IntegerField(default=1500000)
+    critical = models.IntegerField(default=250000)
+
+    def __str__(self):
+        return f"{self.structure.name}"

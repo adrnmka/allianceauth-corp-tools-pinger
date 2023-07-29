@@ -6,6 +6,7 @@ from discord.commands import SlashCommandGroup, Option
 
 from discord import AutocompleteContext
 # AA Contexts
+from corptools.models import CharacterAudit, MapSystemMoon
 from corptools.models import CharacterAudit
 from django.conf import settings
 from django.db.models.query_utils import Q
@@ -35,11 +36,33 @@ class Pinger(commands.Cog):
         "pinger", "Infra Pinger Commands", guild_ids=[int(settings.DISCORD_GUILD_ID)])
 
     def mute_str(self, input_name):
-        locs = EveLocation.objects.filter(location_name=input_name)
+        locs = EveLocation.objects.filter(location_name=input_name.strip())
+        moon = MapSystemMoon.objects.filter(name=input_name.strip())
         if locs.count() > 0:
             for loc in locs:
                 muted, _ = MutedStructure.objects.update_or_create(
                     structure_id=loc.location_id)
+            return True
+        elif moon.count() > 0:
+            for loc in moon:
+                muted, _ = MutedStructure.objects.update_or_create(
+                    structure_id=loc.moon_id)
+            return True
+        else:
+            return False
+
+    def unmute_str(self, input_name):
+        locs = EveLocation.objects.filter(location_name=input_name.strip())
+        moon = MapSystemMoon.objects.filter(name=input_name.strip())
+        if locs.count() > 0:
+            for loc in locs:
+                MutedStructure.objects.filter(
+                    structure_id=loc.location_id).delete()
+            return True
+        elif moon.count() > 0:
+            for loc in moon:
+                MutedStructure.objects.filter(
+                    structure_id=loc.moon_id).delete()
             return True
         else:
             return False
@@ -105,6 +128,23 @@ class Pinger(commands.Cog):
 
         if self.mute_str(structure):
             await ctx.respond(f"`{structure}` Muted for 48hours")
+        else:
+            await ctx.respond(f"`{structure}` Could not find structure")
+
+    @pinger_commands.command(name='unmute', guild_ids=[int(settings.DISCORD_GUILD_ID)])
+    async def unmute_slash(self, ctx, structure: Option(str, autocomplete=get_recent)):
+        """
+        Mute a structure for 48h....
+        """
+
+        if ctx.channel_id not in self.get_mute_channels():
+            return await ctx.respond(f"Please use this in a correct channel.", ephemeral=True)
+
+        if not self.sender_has_structure_perm(ctx):
+            return await ctx.respond(f"You do not have permision to use this command.", ephemeral=True)
+
+        if self.unmute_str(structure):
+            await ctx.respond(f"`{structure}` Un-Muted")
         else:
             await ctx.respond(f"`{structure}` Could not find structure")
 
