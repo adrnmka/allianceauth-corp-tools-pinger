@@ -1,24 +1,24 @@
-from logging import exception
+import datetime
+import json
+import logging
 import struct
 import sys
+import time
+from logging import exception
+
+import yaml
+from allianceauth.eveonline.evelinks import eveimageserver, evewho, zkillboard
 from allianceauth.eveonline.models import EveCharacter
 from allianceauth.timerboard.models import Timer
-from django.db import models
-import yaml
-import json
-import datetime
-import time
-
 from corptools import models as ctm
 from corptools.task_helpers.update_tasks import fetch_location_name
+from django.apps import apps
+from django.db import models
+from django.utils import timezone
+from django.utils.html import strip_tags
 
 from .models import MutedStructure
 from .providers import cache_client
-
-from django.utils.html import strip_tags
-from django.utils import timezone
-import logging
-from django.apps import apps
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +28,7 @@ def timers_enabled():
 
 
 if timers_enabled():  # NOQA
-    from allianceauth.timerboard.models import TimerType, Timer
+    from allianceauth.timerboard.models import Timer, TimerType
 
 
 class MutedException(Exception):
@@ -1608,22 +1608,23 @@ class CorpAppAcceptMsg(NotificationPing):
         title = "Corp Application Accepted"
         app_char, _ = ctm.EveName.objects.get_or_create_from_esi(
             self._data['charID'])
+        app_corp, _ = ctm.EveName.objects.get_or_create_from_esi(
+            self._data['corpID'])
         try:
             eve_main = EveCharacter.objects.get(
-                character_id=self._data['charID']).character_ownership.user.profile.main_character
-            eve_main = f"[{eve_main.character_name}](https://evewho.com/character/{eve_main.character_id}/) [ [{eve_main.corporation_ticker}](https://evewho.com/corporation/{eve_main.corporation_id}) ]"
+                character_id=self._data['charID']
+            ).character_ownership.user.profile.main_character
+            eve_main = f"[{eve_main.character_name}]({evewho.character_url(eve_main.character_id)}) [ [{eve_main.corporation_ticker}]({evewho.corporation_url(eve_main.corporation_id)}) ]"
         except:
             eve_main = "Unknown"
 
         body = f"```{strip_tags(self._data['applicationText'])}```\n"
 
-        corp_id = self._notification.character.character.corporation_id
-        corp_ticker = self._notification.character.character.corporation_ticker
-        corp_name = "[%s](https://zkillboard.com/search/%s/)" % \
-            (self._notification.character.character.corporation_name,
-             self._notification.character.character.corporation_name.replace(" ", "%20"))
-        footer = {"icon_url": "https://imageserver.eveonline.com/Corporation/%s_64.png" % (str(corp_id)),
-                  "text": "%s (%s)" % (self._notification.character.character.corporation_name, corp_ticker)}
+        corp_id = app_corp.eve_id
+        corp_name = f"[{app_corp.name}]({zkillboard.corporation_url(corp_id)})"
+        footer = {"icon_url": f"{eveimageserver.corporation_logo_url(corp_id, size=64)}",
+                  "text": f"{app_corp.name}"
+                  }
 
         fields = [{'name': 'Character', 'value': f"[{app_char}](https://evewho.com/character/{app_char.eve_id}/)", 'inline': True},
                   {'name': 'Corporation', 'value': corp_name, 'inline': True},
