@@ -435,6 +435,7 @@ def corporation_notification_update(self, corporation_id):
         # TODO yell in the direction of CCP and find a nicer way to manage this.
         notifs.operation.swagger_spec.config["validate_responses"] = False
         notifs.request_config.also_return_response = True
+        notifications = []
 
         try:
             notifications, response = notifs.results()
