@@ -437,7 +437,7 @@ def corporation_notification_update(self, corporation_id):
         notifs.request_config.also_return_response = True
 
         try:
-            notifs, response = notifs.results()
+            notifications, response = notifs.results()
         except Exception as e:
             raise e
         finally:
@@ -469,7 +469,7 @@ def corporation_notification_update(self, corporation_id):
         pinged_already = set(
             list(Ping.objects.values_list("notification_id", flat=True)))
 
-        for n in notifs:
+        for n in notifications:
             if n.get('timestamp') > CUTTOFF:
                 if n.get('type') in types.keys():
                     if n.get('notification_id') not in pinged_already:
