@@ -435,10 +435,10 @@ def corporation_notification_update(self, corporation_id):
         # TODO yell in the direction of CCP and find a nicer way to manage this.
         notifs.operation.swagger_spec.config["validate_responses"] = False
         notifs.request_config.also_return_response = True
-        notifications = []
+        _notifs = []
 
         try:
-            notifications, response = notifs.results()
+            _notifs, response = notifs.results()
         except Exception as e:
             raise e
         finally:
@@ -470,7 +470,7 @@ def corporation_notification_update(self, corporation_id):
         pinged_already = set(
             list(Ping.objects.values_list("notification_id", flat=True)))
 
-        for n in notifications:
+        for n in _notifs:
             if n.get('timestamp') > CUTTOFF:
                 if n.get('type') in types.keys():
                     if n.get('notification_id') not in pinged_already:
