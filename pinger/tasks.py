@@ -1,27 +1,24 @@
-import time
 import datetime
-import logging
-import json
-from esi.models import Token
-import requests
 import hashlib
+import json
+import logging
+import time
+from http.cookiejar import http2time
 
-from celery import shared_task
-from django.core.cache import cache
+import requests
 from allianceauth.services.tasks import QueueOnce
-from django.utils import timezone
+from celery import shared_task
+from corptools.models import CharacterAudit, CorporationAudit, Structure
+from corptools.providers import esi
+from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist
-
+from django.db.models import Max, Q
+from django.utils import timezone
+from esi.models import Token
 from oauthlib.oauth2.rfc6749.errors import InvalidGrantError
 
-from corptools.providers import esi
-from corptools.models import CharacterAudit, CorporationAudit, Structure
-
-from django.db.models import Q
-from django.db.models import Max
-from pinger.models import DiscordWebhook, FuelPingRecord, Ping, PingerConfig, StructureLoThreshold
-
-from http.cookiejar import http2time
+from pinger.models import (DiscordWebhook, FuelPingRecord, Ping, PingerConfig,
+                           StructureLoThreshold)
 
 from . import notifications
 from .providers import cache_client
@@ -427,10 +424,26 @@ def corporation_notification_update(self, corporation_id):
         types = notifications.get_available_types()
         # update notifications for this character inline.
 
-        notifs = esi.client.Character.get_characters_character_id_notifications(character_id=character_id,
-                                                                                token=access_token)
+        notifs = esi.client.Character.get_characters_character_id_notifications(
+            character_id=character_id,
+            token=access_token
+        )
+
+        # CCPLEASE Why do you make me do this....
+        # I hate this... i am unsure of the possible dangers of allowing invalid data through...
+        # maybe we can make this an option later on or add some kind of admin ping on bad data...
+        # TODO yell in the direction of CCP and find a nicer way to manage this.
+        notifs.operation.swagger_spec.config["validate_responses"] = False
         notifs.request_config.also_return_response = True
-        notifs, response = notifs.results()
+
+        try:
+            notifs, response = notifs.results()
+        except Exception as e:
+            raise e
+        finally:
+            # As this is a spec level change it needs to be reverted
+            # if it is not all requests stop being validated this is bad...
+            notifs.operation.swagger_spec.config["validate_responses"] = True
 
         now = time.mktime(timezone.now().timetuple())
         next_expire = http2time(response.headers.get('Expires'))
