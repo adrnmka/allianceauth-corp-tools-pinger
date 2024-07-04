@@ -21,6 +21,7 @@ from pinger.models import (DiscordWebhook, FuelPingRecord, Ping, PingerConfig,
                            StructureLoThreshold)
 
 from . import notifications
+from .notifications.base import get_available_types
 from .providers import cache_client
 
 TZ_STRING = "%Y-%m-%dT%H:%M:%SZ"
@@ -29,7 +30,7 @@ CACHE_TIME_SECONDS = 10*60
 
 TASK_PRIO = 3
 
-LOOK_BACK_HOURS = 6
+LOOK_BACK_HOURS = 60000
 
 
 logger = logging.getLogger(__name__)
@@ -421,7 +422,7 @@ def corporation_notification_update(self, corporation_id):
         _set_cache_data_for_corp(
             corporation_id, character_id, all_chars_in_corp, 10)
 
-        types = notifications.get_available_types()
+        types = get_available_types()
         # update notifications for this character inline.
 
         notifs = esi.client.Character.get_characters_character_id_notifications(
@@ -540,7 +541,7 @@ def process_notifications(self, cid, notifs):
 
     pings = {}
     # grab all notifications within scope.
-    types = notifications.get_available_types()
+    types = get_available_types()
     pinged_already = set(list(Ping.objects.filter(
         time__gte=(CUTTOFF-datetime.timedelta(days=1))).values_list("notification_id", flat=True)))
     # parse them into the parsers

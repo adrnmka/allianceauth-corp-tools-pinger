@@ -1,13 +1,13 @@
 import json
+import logging
+from datetime import timedelta
 
-from django.core.exceptions import ValidationError
-from django.db import models
 from allianceauth.eveonline.models import EveAllianceInfo, EveCorporationInfo
 from corptools.models import MapRegion, Structure
+from django.core.exceptions import ValidationError
+from django.db import models
 from django.db.models.deletion import CASCADE
 from django.utils import timezone
-from datetime import timedelta
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -201,7 +201,16 @@ class PingerConfig(models.Model):
                                                    help_text='Minimmum time between tasks for corp.')
 
     discord_mute_channels = models.TextField(
-        default="", blank=True, help_text='Comma Separated list of channel_ids the mute command can be used in.')
+        default="",
+        blank=True,
+        help_text='Comma Separated list of channel_ids the mute command can be used in.'
+    )
+
+    attack_command_output_id = models.BigIntegerField(
+        default=0,
+        blank=True,
+        help_text='discord channel_id that the /attack command outputs too.'
+    )
 
     def save(self, *args, **kwargs):
         if not self.pk and PingerConfig.objects.exists():

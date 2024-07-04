@@ -1,27 +1,84 @@
 # Cog Stuff
-from aadiscordbot.cogs.utils.decorators import sender_has_perm
-from allianceauth.services.modules.discord.models import DiscordUser
-from discord.ext import commands
-from discord.commands import SlashCommandGroup, Option
-
-from discord import AutocompleteContext
-# AA Contexts
-from corptools.models import CharacterAudit, MapSystemMoon
-from corptools.models import CharacterAudit
-from django.conf import settings
-from django.db.models.query_utils import Q
-from allianceauth.eveonline.models import EveCharacter
-import pinger
-
-from pinger.tasks import get_settings, _get_cache_data_for_corp
-from pinger.models import MutedStructure, PingerConfig
-from corptools.models import EveLocation
+import logging
+from typing import Optional
 
 from aadiscordbot import app_settings
+from aadiscordbot.cogs.utils.decorators import sender_has_perm
+from aadiscordbot.tasks import send_channel_message_by_discord_id
+from allianceauth.eveonline.evelinks import dotlan
+from allianceauth.eveonline.models import EveCharacter
+from allianceauth.services.modules.discord.models import DiscordUser
+# AA Contexts
+from corptools.models import (CharacterAudit, EveLocation, MapSystem,
+                              MapSystemMoon)
+from discord import AutocompleteContext, ButtonStyle, Embed, option, ui
+from discord.commands import Option, SlashCommandGroup
+from discord.ext import commands
+from django.conf import settings
+from django.db.models.query_utils import Q
+from django.utils import timezone
+
+from pinger.models import MutedStructure, PingerConfig
+from pinger.tasks import _get_cache_data_for_corp, get_settings
+
+from .models import PingerConfig
 from .providers import cache_client
-import logging
 
 logger = logging.getLogger(__name__)
+
+BLUE = 0x3498db
+MAGENTA = 0xe91e63
+GREYPLE = 0x99aab5
+RED = 0x992d22
+
+
+class AttackView(ui.View):
+    embed_text = None
+    created = None
+
+    def __init__(self,
+                 *items: ui.Item,
+                 found_by_uid: int = 0,
+                 found_by: str = "",
+                 system: str = "",
+                 timeout: Optional[float] = 60*60*24,  # 24h from last click
+                 embed: Optional[Embed] = None,
+                 bot=None
+                 ):
+        if embed:
+            if isinstance(embed, dict):
+                self.embed_text = Embed.from_dict(embed)
+            elif isinstance(embed, Embed):
+                self.embed_text = embed
+        self.bot = bot
+        self.created = timezone.now()
+        super().__init__(*items, timeout=timeout)
+        logger.debug(self.id)
+
+    @ui.button(label="FC Claim", style=ButtonStyle.blurple)
+    async def claim(self, button: ui.Button, interaction):
+        logger.debug(self.id)
+        view = self
+        view.children[0].disabled = True
+        message = f"{interaction.user.nick if interaction.user.nick else interaction.user.name}"
+        embed = interaction.message.embeds[0]
+        embed.color = MAGENTA
+        embed.add_field(name="Claimed By", value=message, inline=False)
+
+        await interaction.response.edit_message(embed=embed, view=view)
+
+    @ui.button(label="Safe", style=ButtonStyle.success)
+    async def run(self, button: ui.Button, interaction):
+        logger.debug(self.id)
+        message = f"{interaction.user.nick if interaction.user.nick else interaction.user.name}"
+        embed = interaction.message.embeds[0]
+        embed.color = GREYPLE
+        embed.add_field(name="Declared Safe by", value=message, inline=False)
+        await interaction.response.edit_message(embed=embed, view=None)
+
+    async def on_timeout(self) -> None:
+        print(vars(self))
+        await super().on_timeout()
 
 
 class Pinger(commands.Cog):
@@ -34,6 +91,68 @@ class Pinger(commands.Cog):
 
     pinger_commands = SlashCommandGroup(
         "pinger", "Infra Pinger Commands", guild_ids=[int(settings.DISCORD_GUILD_ID)])
+
+    async def search_systems(ctx: AutocompleteContext):
+        """Returns a list of systems that have the characters entered so far."""
+        return list(MapSystem.objects.filter(name__icontains=f"{ctx.value}")[:10].values_list("name", flat=True))
+
+    @commands.slash_command(name='attack', guild_ids=[int(settings.DISCORD_GUILD_ID)])
+    @option("system", description="What System has been attacked?", autocomplete=search_systems)
+    @option("message", description="Anything else to add? Narrow it down a bit for the FC's")
+    async def sov_hacked(
+        self,
+        ctx,
+        system: str,
+        message: str
+    ):
+        """
+            Notify that something is being attacked/stolen from! ( Skyhook, etc )
+        """
+        await ctx.defer(ephemeral=True)
+
+        user = ctx.author
+
+        # no dupes!
+        exist = await self.bot.redis.get(f"pinger-claimbot-{system}")
+        if exist:
+            return await ctx.respond(f"Activity in `{system}` has already been pinged in the last 5 Minutes! Ping manually if required.", ephemeral=True)
+        else:
+            await self.bot.redis.set(f"pinger-claimbot-{system}", user.name, ex=60*5)
+
+        config = PingerConfig.objects.get(id=1)
+
+        output_channel = config.attack_command_output_id if config.attack_command_output_id else ctx.channel.id
+
+        e = Embed(title="Attack Reported!", color=RED)
+
+        msg = [f"System: [{system}]({dotlan.solar_system_url(system)})"]
+
+        if message:
+            msg.append(f"{message}")
+
+        extra_message = "\n".join(msg)
+
+        e.description = extra_message
+
+        e.add_field(
+            name="Reported By",
+            value=f"{user.nick if user.nick else user.name} <@{user.id}>",
+            inline=False
+        )
+
+        view_str = "pinger.cogs.AttackView"
+
+        send_channel_message_by_discord_id.delay(
+            output_channel,
+            "@everyone",
+            embed=e.to_dict(),
+            view_class=view_str,
+            view_kwargs={"found_by": f"{ctx.author.nick if ctx.author.nick else ctx.author.name}",
+                         "found_by_uid": ctx.author.id,
+                         "system": system}
+        )
+
+        return await ctx.respond(f"sent message!", ephemeral=True)
 
     def mute_str(self, input_name):
         locs = EveLocation.objects.filter(location_name=input_name.strip())

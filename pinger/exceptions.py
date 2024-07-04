@@ -1,0 +1,4 @@
+
+
+class MutedException(Exception):
+    pass
