@@ -162,3 +162,106 @@ class OrbitalReinforced(NotificationPing):
         self._corp = self._notification.character.character.corporation_id
         self._alli = self._notification.character.character.alliance_id
         self._region = system_db.constellation.region.region_id
+
+
+class unknownnotificationtype283(NotificationPing):
+    """
+        This is a skyhook attack notification
+        unknown notification type (283)
+        till ESI is fixed this is what we need to check for.
+    """
+    category = "orbital-attack"  # orbital-attack
+
+    """
+        allianceID: 1900696668
+        allianceLinkData:
+        - showinfo
+        - 16159
+        - 1900696668
+        allianceName: The Initiative.
+        armorPercentage: 100.0
+        charID: 90406623
+        corpLinkData:
+        - showinfo
+        - 2
+        - 98434316
+        corpName: Tactically Challenged
+        hullPercentage: 100.0
+        isActive: true
+        itemID: &id001 1045736027496
+        planetID: 40290676
+        planetShowInfoData:
+        - showinfo
+        - 2015
+        - 40290676
+        shieldPercentage: 94.98293275026545
+        skyhookShowInfoData:
+        - showinfo
+        - 81080
+        - *id001
+        solarsystemID: 30004600
+        typeID: 81080
+    """
+
+    def build_ping(self):
+        print(self._data)
+        system_db = ctm.MapSystem.objects.get(
+            system_id=self._data['solarsystemID'])  # WTF...
+        planet_db, _ = ctm.MapSystemPlanet.objects.get_or_create_from_esi(
+            planet_id=self._data['planetID'])
+
+        system_name = system_db.name
+        region_name = system_db.constellation.region.name
+        planet_name = planet_db.name
+
+        system_name = f"[{planet_name}](http://evemaps.dotlan.net/system/{system_name.replace(' ', '_')})"
+        region_name = f"[{region_name}](http://evemaps.dotlan.net/region/{region_name.replace(' ', '_')})"
+
+        structure_type, _ = ctm.EveItemType.objects.get_or_create_from_esi(
+            self._data['typeID'])
+
+        title = "Poco Under Attack"
+        body = "{} - {} under Attack!\nS: {:.2f}% A: {:.2f}, H: {:.2f}".format(
+            structure_type.name,
+            system_name,
+            float(self._data['shieldPercentage']),
+            float(self._data['armorPercentage']),
+            float(self._data['hullPercentage']))
+
+        corp_id = self._notification.character.character.corporation_id
+        corp_ticker = self._notification.character.character.corporation_ticker
+        footer = {"icon_url": "https://imageserver.eveonline.com/Corporation/%s_64.png" % (str(corp_id)),
+                  "text": "%s (%s)" % (self._notification.character.character.corporation_name, corp_ticker)}
+
+        attacking_char, _ = ctm.EveName.objects.get_or_create_from_esi(
+            self._data['charID'])
+        attacking_corp = self._data['corpName']
+
+        attacking_alli = None
+        if self._data['allianceName']:
+            attacking_alli = self._data['allianceName']
+
+        attackerStr = "*[%s](https://zkillboard.com/search/%s/)*, [%s](https://zkillboard.com/search/%s/), **[%s](https://zkillboard.com/search/%s/)**" % \
+            (attacking_char.name,
+             attacking_char.name.replace(" ", "%20"),
+             attacking_corp,
+             attacking_corp.replace(" ", "%20"),
+             attacking_alli if attacking_alli else "*-*",
+             attacking_alli.replace(" ", "%20") if attacking_alli else "")
+
+        fields = [{'name': 'System/Planet', 'value': system_name, 'inline': True},
+                  {'name': 'Region', 'value': region_name, 'inline': True},
+                  {'name': 'Type', 'value': structure_type.name, 'inline': True},
+                  {'name': 'Attacker', 'value': attackerStr, 'inline': False}]
+
+        self.package_ping(title,
+                          body,
+                          self._notification.timestamp,
+                          fields=fields,
+                          footer=footer,
+                          colour=15158332)
+
+        self._corp = self._notification.character.character.corporation_id
+        self._alli = self._notification.character.character.alliance_id
+        self._region = system_db.constellation.region.region_id
+        self.force_at_ping = True

@@ -30,7 +30,7 @@ CACHE_TIME_SECONDS = 10*60
 
 TASK_PRIO = 3
 
-LOOK_BACK_HOURS = 60000
+LOOK_BACK_HOURS = 6
 
 
 logger = logging.getLogger(__name__)
@@ -473,7 +473,10 @@ def corporation_notification_update(self, corporation_id):
 
         for n in _notifs:
             if n.get('timestamp') > CUTTOFF:
-                if n.get('type') in types.keys():
+                _t = n.get('type').replace(" ", "").replace(
+                    "(", "").replace(")", "")
+                print(_t)
+                if _t in types.keys():
                     if n.get('notification_id') not in pinged_already:
                         n['time'] = datetime.datetime.timestamp(
                             n.get('timestamp'))
@@ -549,10 +552,12 @@ def process_notifications(self, cid, notifs):
         if n.notification_id not in pinged_already:
             pinged_already.add(n.notification_id)
             try:
-                note = types[n.notification_type](n)
-                if n.notification_type not in pings:
-                    pings[n.notification_type] = []
-                pings[n.notification_type].append(note)
+                _t = n.notification_type.replace(
+                    " ", "").replace("(", "").replace(")", "")
+                note = types[_t](n)
+                if _t not in pings:
+                    pings[_t] = []
+                pings[_t].append(note)
             except notifications.MutedException:
                 pass
 

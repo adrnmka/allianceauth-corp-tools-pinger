@@ -9,7 +9,8 @@ from ..exceptions import MutedException
 from ..models import MutedStructure
 from ..providers import cache_client
 from .base import NotificationPing
-from .helpers import create_timer, format_timedelta, timers_enabled
+from .helpers import (create_timer, format_timedelta, time_till_to_dt,
+                      time_till_to_string, timers_enabled)
 
 logger = logging.getLogger(__name__)
 
