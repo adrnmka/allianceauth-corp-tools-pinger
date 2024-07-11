@@ -9,7 +9,6 @@ import requests
 from allianceauth.services.tasks import QueueOnce
 from celery import shared_task
 from corptools.models import CharacterAudit, CorporationAudit, Structure
-from corptools.providers import esi
 from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import Max, Q
@@ -22,7 +21,7 @@ from pinger.models import (DiscordWebhook, FuelPingRecord, Ping, PingerConfig,
 
 from . import notifications
 from .notifications.base import get_available_types
-from .providers import cache_client
+from .providers import cache_client, esi
 
 TZ_STRING = "%Y-%m-%dT%H:%M:%SZ"
 
@@ -122,9 +121,12 @@ def bootstrap_notification_tasks():
     # get list of all active corp tasks from cache
     allis, corps, _ = get_settings()
     # get all new corps not in cache
-    all_member_corps_in_audit = CharacterAudit.objects.filter(character__character_ownership__user__profile__state__name__in=["Member"],
-                                                              characterroles__station_manager=True,
-                                                              active=True)
+    all_member_corps_in_audit = CharacterAudit.objects.filter(
+        character__character_ownership__user__profile__state__name__in=[
+            "Member"],
+        characterroles__station_manager=True,
+        active=True
+    )
 
     # TODO add app.model setting to filter for who to ping for.
     filters = []
@@ -434,7 +436,7 @@ def corporation_notification_update(self, corporation_id):
         # I hate this... i am unsure of the possible dangers of allowing invalid data through...
         # maybe we can make this an option later on or add some kind of admin ping on bad data...
         # TODO yell in the direction of CCP and find a nicer way to manage this.
-        notifs.operation.swagger_spec.config["validate_responses"] = False
+        # notifs.operation.swagger_spec.config["validate_responses"] = False
         notifs.request_config.also_return_response = True
         _notifs = []
 
@@ -443,9 +445,11 @@ def corporation_notification_update(self, corporation_id):
         except Exception as e:
             raise e
         finally:
-            # As this is a spec level change it needs to be reverted
+            # As this is a spec level change i think it needs to be reverted
             # if it is not all requests stop being validated this is bad...
-            notifs.operation.swagger_spec.config["validate_responses"] = True
+            # but for now lets not... see what happens...
+            # notifs.operation.swagger_spec.config["validate_responses"] = False
+            pass
 
         now = time.mktime(timezone.now().timetuple())
         next_expire = http2time(response.headers.get('Expires'))
@@ -476,6 +480,12 @@ def corporation_notification_update(self, corporation_id):
                 _t = n.get('type').replace(" ", "").replace(
                     "(", "").replace(")", "")
                 print(_t)
+                if _t.startswith("unknown"):
+                    logger.warning(
+                        f"PINGER: {corporation_id} Got Notification "
+                        f"{n.get('notification_id')} {n.get('type')} "
+                        f"{n.get('timestamp')}\n\n{n.get('text')}"
+                    )
                 if _t in types.keys():
                     if n.get('notification_id') not in pinged_already:
                         n['time'] = datetime.datetime.timestamp(
@@ -531,8 +541,9 @@ def process_notifications(self, cid, notifs):
             note['timestamp'] = datetime.datetime.fromtimestamp(
                 note.get('time'), tz=datetime.timezone.utc)
         if note.get('timestamp') > CUTTOFF:
-            logger.info(
-                f"PINGER: {char} Got Notification {note.get('notification_id')} {note.get('type')} {note.get('timestamp')}")
+            if note.get('type').startswith("unknown"):
+                logger.info(
+                    f"PINGER: {char} Got Notification {note.get('notification_id')} {note.get('type')} {note.get('timestamp')}\n\n{note.get('text')}")
 
             n = Notification(character=char,
                              notification_id=note.get(
