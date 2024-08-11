@@ -8,10 +8,11 @@ from http.cookiejar import http2time
 import requests
 from allianceauth.services.tasks import QueueOnce
 from celery import shared_task
-from corptools.models import CharacterAudit, CorporationAudit, Structure
+from corptools.models import (CharacterAudit, CorpAsset, CorporationAudit,
+                              Structure)
 from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist
-from django.db.models import Max, Q
+from django.db.models import Max, Q, Sum
 from django.utils import timezone
 from esi.models import Token
 from oauthlib.oauth2.rfc6749.errors import InvalidGrantError
@@ -105,6 +106,8 @@ def _get_cache_data_for_corp(corp_id):
 
 def _set_cache_data_for_corp(corp_id, last_char, char_array, next_update):
     data = {
+        "latest_notification_id": 0,
+        "latest_notification_character_id": 0,
         "last_char": last_char,
         "char_array": char_array,
         "next_update": time.mktime(timezone.now().timetuple()) + next_update
@@ -222,16 +225,16 @@ def corporation_fuel_check(self, corporation_id):
                 old.delete()
 
 
-def get_lo_key():
-    return "LO_LEVEL_HASH_KEY"
+def get_lo_key(corp_id):
+    return f"LO_LEVEL_HASH_KEY_{corp_id}"
 
 
-def get_lo_ping_state():
-    return "21"
+def get_lo_ping_state(corp_id):
+    return cache.get(get_lo_key(corp_id), "")
 
 
-def set_lo_ping_state(hash):
-    return
+def set_lo_ping_state(corp_id, hash):
+    return cache.set(get_lo_key(corp_id), hash, timeout=60*60*24*7)
 
 
 def sort_structure_list(struct_list):
@@ -240,10 +243,11 @@ def sort_structure_list(struct_list):
 
 @shared_task(bind=True, base=QueueOnce, max_retries=None)
 def corporation_lo_check(self, corporation_id):
-    logger.info(
-        f"PINGER: Starting LO Checks")
+    logger.info("PINGER: Starting LO Checks")
     fuel_structures = Structure.objects.filter(
-        type_name_id=35841, corporation__corporation__corporation_id=corporation_id).order_by("name")
+        type_name_id=35841,
+        corporation__corporation__corporation_id=corporation_id
+    ).order_by("name")
 
     low = []
     crit = []
@@ -260,7 +264,7 @@ def corporation_lo_check(self, corporation_id):
             pass
 
         loLeft = struct.ozone_level
-        if loLeft == False:
+        if loLeft is False:
             unknown.append(struct)
             continue
 
@@ -285,27 +289,30 @@ def corporation_lo_check(self, corporation_id):
         sorted_hash = hashlib.md5(json.dumps(
             sorted_arrays).encode()).hexdigest()
 
-        if get_lo_ping_state() == sorted_hash:
-            set_lo_ping_state(sorted_hash)
+        if get_lo_ping_state(corporation_id) == sorted_hash:
+            set_lo_ping_state(corporation_id, sorted_hash)
             return
         else:
             # send pings
-            embed = {'color': 15158332,
-                     'title': "Liquid Ozone State",
-                     'description': ""
-                     }
+            embed = {
+                'color': 15158332,
+                'title': "Liquid Ozone State",
+                'description': ""
+            }
             gap = "               "
             desc = []
             if len(crit):
                 desc.append("\n**Critical Ozone Levels:**")
                 crit_block = [
-                    f"{s.ozone_level:,}{gap[len(f'{s.ozone_level:,}'):15]}{s.name}" for s in crit]
+                    f"{s.ozone_level:,}{gap[len(f'{s.ozone_level:,}'):15]}{s.name}" for s in crit
+                ]
                 crit_block = "\n".join(crit_block)
                 desc.append(f'```Liquid Ozone   Structure\n{crit_block}```')
             if len(low):
                 desc.append("\n**Low Ozone Levels:**")
                 low_block = [
-                    f"{s.ozone_level:,}{gap[len(f'{s.ozone_level:,}'):15]}{s.name}" for s in low]
+                    f"{s.ozone_level:,}{gap[len(f'{s.ozone_level:,}'):15]}{s.name}" for s in low
+                ]
                 low_block = "\n".join(low_block)
                 desc.append(f'```Liquid Ozone   Structure\n{low_block}```')
             if len(unknown):
@@ -316,12 +323,17 @@ def corporation_lo_check(self, corporation_id):
 
             embed["description"] = "\n".join(desc)
 
-            set_lo_ping_state(sorted_hash)
+            set_lo_ping_state(corporation_id, sorted_hash)
 
-            webhooks = DiscordWebhook.objects.filter(lo_pings=True)\
-                .prefetch_related("alliance_filter", "corporation_filter", "region_filter")
-            logger.info(
-                f"PINGER: FUEL Webhooks {webhooks.count()}")
+            webhooks = DiscordWebhook.objects.filter(
+                lo_pings=True
+            ).prefetch_related(
+                "alliance_filter",
+                "corporation_filter",
+                "region_filter"
+            )
+
+            logger.info(f"PINGER: FUEL Webhooks {webhooks.count()}")
 
             for hook in webhooks:
                 corporations = hook.corporation_filter.all(
@@ -332,16 +344,162 @@ def corporation_lo_check(self, corporation_id):
                 if corp_filter is not None and len(corporations) > 0:
                     if corp_filter not in corporations:
                         logger.info(
-                            f"PINGER: FUEL  Skipped {self.structure.name} Corp {corp_filter} not in {corporations}")
+                            f"PINGER: FUEL  Skipped {self.structure.name} Corp {corp_filter} not in {corporations}"
+                        )
                         continue
 
                 alert = False
-                p = Ping.objects.create(notification_id=-1,
-                                        hook=hook,
-                                        body=json.dumps(embed),
-                                        time=timezone.now(),
-                                        alerting=alert
-                                        )
+                p = Ping.objects.create(
+                    notification_id=-1,
+                    hook=hook,
+                    body=json.dumps(embed),
+                    time=timezone.now(),
+                    alerting=alert
+                )
+                p.send_ping()
+
+                return embed
+
+
+def get_gas_key(corp_id):
+    return f"LO_LEVEL_HASH_KEY_{corp_id}"
+
+
+def get_gas_ping_state(corp_id):
+    return cache.get(get_gas_key(corp_id), "")
+
+
+def set_gas_ping_state(corp_id, hash):
+    return cache.set(get_gas_key(corp_id), hash, timeout=60*60*24*7)
+
+
+@shared_task(bind=True, base=QueueOnce, max_retries=None)
+def corporation_gas_check(self, corporation_id):
+    logger.info("PINGER: Starting Gas Checks")
+
+    fuel_structures = Structure.objects.filter(
+        type_name_id=81826,
+        corporation__corporation__corporation_id=corporation_id
+    ).order_by("name")
+
+    low = []
+    crit = []
+    unknown = []
+    levels = {}
+    for struct in fuel_structures:
+        th_low = 9240
+        th_crit = 3960
+
+        # try:
+        #     th_low = struct.gas_th.low
+        #     th_crit = struct.gas_th.critical
+        # except ObjectDoesNotExist:
+        #     pass
+
+        loLeft = CorpAsset.objects.filter(
+            location_id=struct.structure_id,
+            type_id=81143
+        ).aggregate(
+            total=Sum("quantity")
+        )["total"]
+
+        if loLeft is None:
+            unknown.append(struct)
+            continue
+
+        if loLeft < th_low:
+            if 1 <= loLeft < th_crit:
+                crit.append(struct)
+                levels[struct.structure_id] = loLeft
+                continue
+            elif th_crit <= loLeft:
+                low.append(struct)
+                levels[struct.structure_id] = loLeft
+                continue
+        else:
+            pass
+
+    if len(crit) or len(low) or len(unknown):
+        # build it!
+        sorted_arrays = (
+            sort_structure_list(crit),
+            sort_structure_list(low),
+            sort_structure_list(unknown)
+        )
+
+        sorted_hash = hashlib.md5(
+            json.dumps(
+                sorted_arrays
+            ).encode()
+        ).hexdigest()
+
+        if get_gas_ping_state(corporation_id) == sorted_hash:
+            set_gas_ping_state(corporation_id, sorted_hash)
+            return
+        else:
+            # send pings
+            embed = {
+                'color': 15158332,
+                'title': "Magmatic Gas State",
+                'description': ""
+            }
+            gap = "               "
+            desc = []
+            if len(crit):
+                desc.append("\n**Critical Gas Levels:**")
+                crit_block = [
+                    f"{levels[s.structure_id]:,}{gap[len(f'{levels[s.structure_id]:,}'):15]}{s.name}" for s in crit
+                ]
+                crit_block = "\n".join(crit_block)
+                desc.append(f'```Magmatic Gas   Structure\n{crit_block}```')
+            if len(low):
+                desc.append("\n**Low Gas Levels:**")
+                low_block = [
+                    f"{levels[s.structure_id]:,}{gap[len(f'{levels[s.structure_id]:,}'):15]}{s.name}" for s in low
+                ]
+                low_block = "\n".join(low_block)
+                desc.append(f'```Magmatic Gas   Structure\n{low_block}```')
+            if len(unknown):
+                desc.append("\n**Unknown Gas Levels:**")
+                unknown_block = [f" -             {s.name}" for s in unknown]
+                unknown_block = "\n".join(unknown_block)
+                desc.append(
+                    f'```~~Magmatic Gas~~   Structure\n{unknown_block}```')
+
+            embed["description"] = "\n".join(desc)
+
+            set_gas_ping_state(corporation_id, sorted_hash)
+
+            webhooks = DiscordWebhook.objects.filter(
+                gas_pings=True
+            ).prefetch_related(
+                "alliance_filter",
+                "corporation_filter",
+                "region_filter"
+            )
+            logger.info(f"PINGER: FUEL Webhooks {webhooks.count()}")
+
+            for hook in webhooks:
+                corporations = hook.corporation_filter.all(
+                ).values_list("corporation_id", flat=True)
+
+                corp_filter = corporation_id
+
+                if corp_filter is not None and len(corporations) > 0:
+                    if corp_filter not in corporations:
+                        logger.info(
+                            f"PINGER: FUEL  Skipped {self.structure.name} Corp {corp_filter} not in {corporations}"
+                        )
+                        continue
+
+                alert = False
+                p = Ping.objects.create(
+                    notification_id=-2,
+                    hook=hook,
+                    body=json.dumps(embed),
+                    time=timezone.now(),
+                    alerting=alert
+                )
                 p.send_ping()
 
                 return embed
