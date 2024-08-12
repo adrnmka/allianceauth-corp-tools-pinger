@@ -164,12 +164,7 @@ class OrbitalReinforced(NotificationPing):
         self._region = system_db.constellation.region.region_id
 
 
-class unknownnotificationtype283(NotificationPing):
-    """
-        This is a skyhook attack notification
-        unknown notification type (283)
-        till ESI is fixed this is what we need to check for.
-    """
+class SkyhookUnderAttack(NotificationPing):
     category = "orbital-attack"  # orbital-attack
 
     """
@@ -204,7 +199,6 @@ class unknownnotificationtype283(NotificationPing):
     """
 
     def build_ping(self):
-        print(self._data)
         system_db = ctm.MapSystem.objects.get(
             system_id=self._data['solarsystemID'])  # WTF...
         planet_db, _ = ctm.MapSystemPlanet.objects.get_or_create_from_esi(
@@ -220,7 +214,7 @@ class unknownnotificationtype283(NotificationPing):
         structure_type, _ = ctm.EveItemType.objects.get_or_create_from_esi(
             self._data['typeID'])
 
-        title = "Poco Under Attack"
+        title = "Skyhook Under Attack"
         body = "{} - {} under Attack!\nS: {:.2f}% A: {:.2f}, H: {:.2f}".format(
             structure_type.name,
             system_name,

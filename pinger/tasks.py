@@ -10,6 +10,7 @@ from allianceauth.services.tasks import QueueOnce
 from celery import shared_task
 from corptools.models import (CharacterAudit, CorpAsset, CorporationAudit,
                               Structure)
+from corptools.task_helpers import sanitize_notification_type
 from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import Max, Q, Sum
@@ -159,6 +160,8 @@ def bootstrap_notification_tasks():
     all_corps_in_audit = CorporationAudit.objects.all()
     for c in all_corps_in_audit:
         corporation_fuel_check.apply_async(
+            args=[c.corporation.corporation_id], priority=TASK_PRIO+1)
+        corporation_gas_check.apply_async(
             args=[c.corporation.corporation_id], priority=TASK_PRIO+1)
 
 
@@ -613,7 +616,6 @@ def corporation_notification_update(self, corporation_id):
         next_expire = http2time(response.headers.get('Expires'))
 
         secs_till_expire = next_expire - now
-        print(secs_till_expire)
         if next_expire == last_expire:
             logger.info(f"PINGER: CACHE: Same Cache as last update.")
         if secs_till_expire < 30:
@@ -635,9 +637,7 @@ def corporation_notification_update(self, corporation_id):
 
         for n in _notifs:
             if n.get('timestamp') > CUTTOFF:
-                _t = n.get('type').replace(" ", "").replace(
-                    "(", "").replace(")", "")
-                print(_t)
+                _t = sanitize_notification_type(n.get('type'))
                 if _t.startswith("unknown"):
                     logger.warning(
                         f"PINGER: {corporation_id} Got Notification "
@@ -707,7 +707,8 @@ def process_notifications(self, cid, notifs):
                              notification_id=note.get(
                                  'notification_id'),
                              timestamp=note.get('timestamp'),
-                             notification_type=note.get('type'),
+                             notification_type=sanitize_notification_type(
+                                 note.get('type')),
                              notification_text=note.get('text'))
             new_notifs.append(n)
 
