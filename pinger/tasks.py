@@ -394,7 +394,11 @@ def corporation_gas_check(self, corporation_id):
     crit = []
     unknown = []
     levels = {}
+    corp = None
     for struct in fuel_structures:
+        if corp is None:
+            corp = struct.corporation.corporation
+
         th_low = 9240
         th_crit = 3960
 
@@ -455,6 +459,15 @@ def corporation_gas_check(self, corporation_id):
                 'title': "Magmatic Gas State",
                 'description': ""
             }
+            corp_ticker = corp.corporation_ticker
+
+            footer = {
+                "icon_url": "https://imageserver.eveonline.com/Corporation/%s_64.png" % (str(corporation_id)),
+                "text": "%s (%s)" % (corp.corporation_name, corp_ticker)
+            }
+
+            embed["footer"] = footer
+
             gap = "               "
             desc = []
             if len(crit):
