@@ -294,6 +294,11 @@ def corporation_lo_check(self, corporation_id):
 
         if get_lo_ping_state(corporation_id) == sorted_hash:
             set_lo_ping_state(corporation_id, sorted_hash)
+            logger.info(
+                f"LO HASH Match for {get_gas_ping_state(corporation_id)} - "
+                f"{json.dumps(sorted_arrays, indent=2)}"
+            )
+
             return
         else:
             # send pings
@@ -439,7 +444,7 @@ def corporation_gas_check(self, corporation_id):
         if get_gas_ping_state(corporation_id) == sorted_hash:
             set_gas_ping_state(corporation_id, sorted_hash)
             logger.info(
-                f"HASH Match for {get_gas_ping_state(corporation_id)} - "
+                f"GAS HASH Match for {get_gas_ping_state(corporation_id)} - "
                 f"{json.dumps(sorted_arrays, indent=2)}"
             )
             return
