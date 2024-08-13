@@ -1,11 +1,11 @@
 [run]
 branch = True
 source =
-    corptoolspings
+    pinger
 
 omit =
-    */corptoolspings/migrations/*
-    */corptoolspings/tasks.py
+    */pinger/migrations/*
+    */pinger/tasks.py
     */tests/*
     */.tox/*
     */bin/*
