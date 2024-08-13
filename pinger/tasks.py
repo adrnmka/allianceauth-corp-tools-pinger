@@ -365,7 +365,7 @@ def corporation_lo_check(self, corporation_id):
 
 
 def get_gas_key(corp_id):
-    return f"LO_LEVEL_HASH_KEY_{corp_id}"
+    return f"GAS_LEVEL_HASH_KEY_{corp_id}"
 
 
 def get_gas_ping_state(corp_id):
