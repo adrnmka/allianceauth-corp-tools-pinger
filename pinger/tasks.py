@@ -246,7 +246,7 @@ def sort_structure_list(struct_list):
 
 @shared_task(bind=True, base=QueueOnce, max_retries=None)
 def corporation_lo_check(self, corporation_id):
-    logger.info("PINGER: Starting LO Checks")
+    logger.info(f"PINGER: Starting LO Checks {corporation_id}")
     fuel_structures = Structure.objects.filter(
         type_name_id=35841,
         corporation__corporation__corporation_id=corporation_id
@@ -378,7 +378,7 @@ def set_gas_ping_state(corp_id, hash):
 
 @shared_task(bind=True, base=QueueOnce, max_retries=None)
 def corporation_gas_check(self, corporation_id):
-    logger.info("PINGER: Starting Gas Checks")
+    logger.info(f"PINGER: Starting Gas Checks {corporation_id}")
 
     fuel_structures = Structure.objects.filter(
         type_name_id=81826,
