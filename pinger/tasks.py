@@ -255,8 +255,11 @@ def corporation_lo_check(self, corporation_id):
     low = []
     crit = []
     unknown = []
-
+    corp = None
     for struct in fuel_structures:
+        if corp is None:
+            corp = struct.corporation.corporation
+
         th_low = 1500000
         th_crit = 25000
 
@@ -307,6 +310,14 @@ def corporation_lo_check(self, corporation_id):
                 'title': "Liquid Ozone State",
                 'description': ""
             }
+
+            footer = {
+                "icon_url": "https://imageserver.eveonline.com/Corporation/%s_64.png" % (str(corporation_id)),
+                "text": "%s (%s)" % (corp.corporation_name, corp.corporation_ticker)
+            }
+
+            embed["footer"] = footer
+
             gap = "               "
             desc = []
             if len(crit):
@@ -459,11 +470,10 @@ def corporation_gas_check(self, corporation_id):
                 'title': "Magmatic Gas State",
                 'description': ""
             }
-            corp_ticker = corp.corporation_ticker
 
             footer = {
                 "icon_url": "https://imageserver.eveonline.com/Corporation/%s_64.png" % (str(corporation_id)),
-                "text": "%s (%s)" % (corp.corporation_name, corp_ticker)
+                "text": "%s (%s)" % (corp.corporation_name, corp.corporation_ticker)
             }
 
             embed["footer"] = footer
