@@ -46,7 +46,15 @@ configurable @ settings
 
 - New application (CorpAppNewMsg)
 
-# Optimisation
+# Setup
+
+add periodic task, default timing below.
+
+`pinger.tasks.bootstrap_notification_tasks`
+
+make a new cron `*/10 * * * * *`
+
+# Optimization
 
 ## Separate Worker Queue
 
@@ -59,6 +67,7 @@ app.conf.task_routes = {.....
                         }
 ```
 
+## Bare Metal
 Add program block to `supervisor.conf`
 
 ```ini
@@ -75,4 +84,13 @@ startsecs=10
 stopwaitsecs=60
 killasgroup=true
 priority=998
+```
+## Docker
+add a new worker container
+
+```yaml
+  allianceauth_worker_pingbot:
+    container_name: allianceauth_worker_pingbot
+    <<: [*allianceauth-base, *allianceauth-health-checks]
+    entrypoint: ["celery","-A","myauth","worker","--pool=threads","--concurrency=10","-Q","pingbot","-n","P_%n"]
 ```
