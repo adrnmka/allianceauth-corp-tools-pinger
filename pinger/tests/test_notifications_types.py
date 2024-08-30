@@ -1,7 +1,7 @@
-from ..models import CorporationAudit
-from . import CorptoolsTestCase
+# from corptools.models import CorporationAudit
+from corptools.tests import CorptoolsTestCase
 
 
 class TestPinger(CorptoolsTestCase):
     def test_structure_anchor(self):
-        pass
+        self.assertTrue(True)
