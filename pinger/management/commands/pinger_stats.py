@@ -1,12 +1,11 @@
-import pprint
+from corptools.models import CharacterAudit
+
+from django.core.management.base import BaseCommand
+from django.db.models.query_utils import Q
 
 from allianceauth.eveonline.models import EveCharacter
-from corptools.models import CharacterAudit
-from corptools.tasks import update_character
-from django.core.management.base import BaseCommand, CommandError
-from django.db.models.query_utils import Q
-from esi.models import Token
 
+from pinger.app_settings import CT_PINGER_VALID_STATES
 from pinger.tasks import _get_cache_data_for_corp, get_settings
 
 
@@ -20,13 +19,9 @@ class Command(BaseCommand):
         self.stdout.write("Looking for Valid Corps:")
 
         # get all new corps not in cache
-        all_member_corps_in_audit = CharacterAudit.objects.filter(
-            (Q(characterroles__station_manager=True) | Q(
-                characterroles__personnel_manager=True)),
-            character__character_ownership__user__profile__state__name__in=[
-                "Member"],
-            active=True
-        )
+        all_member_corps_in_audit = CharacterAudit.objects.filter((Q(characterroles__station_manager=True) | Q(characterroles__personnel_manager=True)),
+                                                                  character__character_ownership__user__profile__state__name__in=CT_PINGER_VALID_STATES,
+                                                                  active=True)
 
         filters = []
         if len(allis) > 0:

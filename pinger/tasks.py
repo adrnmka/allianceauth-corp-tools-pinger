@@ -6,20 +6,23 @@ import time
 from http.cookiejar import http2time
 
 import requests
-from allianceauth.services.tasks import QueueOnce
 from celery import shared_task
-from corptools.models import (CharacterAudit, CorpAsset, CorporationAudit,
-                              Structure)
+from corptools.models import (
+    CharacterAudit, CorpAsset, CorporationAudit, Structure,
+)
 from corptools.task_helpers import sanitize_notification_type
+from oauthlib.oauth2.rfc6749.errors import InvalidGrantError
+
 from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import Max, Q, Sum
 from django.utils import timezone
-from esi.models import Token
-from oauthlib.oauth2.rfc6749.errors import InvalidGrantError
 
-from pinger.models import (DiscordWebhook, FuelPingRecord, Ping, PingerConfig,
-                           StructureLoThreshold)
+from allianceauth.services.tasks import QueueOnce
+from esi.models import Token
+
+from pinger.app_settings import CT_PINGER_VALID_STATES
+from pinger.models import DiscordWebhook, FuelPingRecord, Ping, PingerConfig
 
 from . import notifications
 from .notifications.base import get_available_types
@@ -27,7 +30,7 @@ from .providers import cache_client, esi
 
 TZ_STRING = "%Y-%m-%dT%H:%M:%SZ"
 
-CACHE_TIME_SECONDS = 10*60
+CACHE_TIME_SECONDS = 10 * 60
 
 TASK_PRIO = 3
 
@@ -126,8 +129,7 @@ def bootstrap_notification_tasks():
     allis, corps, _ = get_settings()
     # get all new corps not in cache
     all_member_corps_in_audit = CharacterAudit.objects.filter(
-        character__character_ownership__user__profile__state__name__in=[
-            "Member"],
+        character__character_ownership__user__profile__state__name__in=CT_PINGER_VALID_STATES,
         characterroles__station_manager=True,
         active=True
     )
@@ -156,28 +158,28 @@ def bootstrap_notification_tasks():
         if next_update < -60:  # 1 min since last update should have fired.
             logger.warning(f"PINGER: {cid} Out of Sync, Starting back up!")
             corporation_notification_update.apply_async(
-                args=[cid], priority=TASK_PRIO+1
+                args=[cid], priority=TASK_PRIO + 1
             )
 
     all_corps_in_audit = CorporationAudit.objects.all()
     for c in all_corps_in_audit:
         corporation_fuel_check.apply_async(
-            args=[c.corporation.corporation_id], priority=TASK_PRIO+1)
+            args=[c.corporation.corporation_id], priority=TASK_PRIO + 1)
         corporation_gas_check.apply_async(
-            args=[c.corporation.corporation_id], priority=TASK_PRIO+1)
+            args=[c.corporation.corporation_id], priority=TASK_PRIO + 1)
 
 
 @shared_task()
 def queue_corporation_notification_update(corporation_id, wait_time):
     corporation_notification_update.apply_async(
-        args=[corporation_id], priority=(TASK_PRIO+1), countdown=wait_time)
+        args=[corporation_id], priority=(TASK_PRIO + 1), countdown=wait_time)
 
 
 def fuel_ping_builder(structure, days, message):
     pingObj = FuelPingRecord.objects.filter(
         last_message=message, last_ping_lo_level__isnull=True, structure=structure, date_empty=structure.fuel_expires).exists()
     if not pingObj:
-        #logger.info("new ping: %s %s"% (_structure,_pingText))
+        # logger.info("new ping: %s %s"% (_structure,_pingText))
 
         n = FuelPingRecord(
             structure=structure,
@@ -193,7 +195,7 @@ def fuel_ping_builder(structure, days, message):
         n.ping_task_ob(message)
         return True
     else:
-        #logger.info("already pinged: %s %s"% (_structure,_pingText))
+        # logger.info("already pinged: %s %s"% (_structure,_pingText))
         return False
 
 
@@ -209,20 +211,17 @@ def corporation_fuel_check(self, corporation_id):
         if not struct.fuel_expires:
             continue  # use the eve notifications
 
-        daysLeft = (struct.fuel_expires -
-                    datetime.datetime.now(timezone.utc)).days
+        daysLeft = (struct.fuel_expires - datetime.datetime.now(timezone.utc)).days
 
         if daysLeft < 15:
             if 0 <= daysLeft < 2:
-                pinged = fuel_ping_builder(
-                    struct, daysLeft, "Critical Fuel! :ambulance:")
+                fuel_ping_builder(struct, daysLeft, "Critical Fuel! :ambulance:")
             elif 2 <= daysLeft < 3:
-                pinged = fuel_ping_builder(
-                    struct, daysLeft, "Critical Fuel! :ambulance: :eyes:")
+                fuel_ping_builder(struct, daysLeft, "Critical Fuel! :ambulance: :eyes:")
             elif 3 <= daysLeft < 8:
-                pinged = fuel_ping_builder(struct, daysLeft, "Low Fuel")
+                fuel_ping_builder(struct, daysLeft, "Low Fuel")
             elif 8 <= daysLeft:
-                pinged = fuel_ping_builder(struct, daysLeft, "Low Fuel")
+                fuel_ping_builder(struct, daysLeft, "Low Fuel")
         else:
             old = FuelPingRecord.objects.filter(
                 last_ping_lo_level__isnull=True, structure=struct)
@@ -239,7 +238,7 @@ def get_lo_ping_state(corp_id):
 
 
 def set_lo_ping_state(corp_id, hash):
-    return cache.set(get_lo_key(corp_id), hash, timeout=60*60*24*7)
+    return cache.set(get_lo_key(corp_id), hash, timeout=60 * 60 * 24 * 7)
 
 
 def sort_structure_list(struct_list):
@@ -315,7 +314,7 @@ def corporation_lo_check(self, corporation_id):
 
             footer = {
                 "icon_url": "https://imageserver.eveonline.com/Corporation/%s_64.png" % (str(corporation_id)),
-                "text": "%s (%s)" % (corp.corporation_name, corp.corporation_ticker)
+                "text": f"{corp.corporation_name} ({corp.corporation_ticker})"
             }
 
             embed["footer"] = footer
@@ -391,7 +390,7 @@ def get_gas_ping_state(corp_id):
 
 
 def set_gas_ping_state(corp_id, hash):
-    return cache.set(get_gas_key(corp_id), hash, timeout=60*60*24*7)
+    return cache.set(get_gas_key(corp_id), hash, timeout=60 * 60 * 24 * 7)
 
 
 @shared_task(bind=True, base=QueueOnce, max_retries=None)
@@ -475,7 +474,7 @@ def corporation_gas_check(self, corporation_id):
 
             footer = {
                 "icon_url": "https://imageserver.eveonline.com/Corporation/%s_64.png" % (str(corporation_id)),
-                "text": "%s (%s)" % (corp.corporation_name, corp.corporation_ticker)
+                "text": f"{corp.corporation_name} ({corp.corporation_ticker})"
             }
 
             embed["footer"] = footer
@@ -651,13 +650,13 @@ def corporation_notification_update(self, corporation_id):
 
         secs_till_expire = next_expire - now
         if next_expire == last_expire:
-            logger.info(f"PINGER: CACHE: Same Cache as last update.")
+            logger.info("PINGER: CACHE: Same Cache as last update.")
         if secs_till_expire < 30:
             logger.warning(
                 f"PINGER: CACHE: Almost expired cache {token.character_name}, retrying with this character in {secs_till_expire + 1} seconds")
             _set_cache_data_for_corp(
                 corporation_id, last_character, all_chars_in_corp, 0)
-            self.retry(countdown=secs_till_expire+1)
+            self.retry(countdown=secs_till_expire + 1)
         elif secs_till_expire < 570:
             logger.warning(
                 f"PINGER: CACHE: Mid cache cycle {token.character_name}, retrying with next character")
@@ -703,7 +702,7 @@ def corporation_notification_update(self, corporation_id):
             f"PINGER: {corporation_id} We have {len(all_chars_in_corp)} Characters, will update every {delay} seconds.")
         # cant requeue ourself in a queueonce enviro
         queue_corporation_notification_update.apply_async(
-            args=[corporation_id, delay], priority=(TASK_PRIO+1), countdown=1)
+            args=[corporation_id, delay], priority=(TASK_PRIO + 1), countdown=1)
 
 
 class Notification:
@@ -750,7 +749,7 @@ def process_notifications(self, cid, notifs):
     # grab all notifications within scope.
     types = get_available_types()
     pinged_already = set(list(Ping.objects.filter(
-        time__gte=(CUTTOFF-datetime.timedelta(days=1))).values_list("notification_id", flat=True)))
+        time__gte=(CUTTOFF - datetime.timedelta(days=1))).values_list("notification_id", flat=True)))
     # parse them into the parsers
     for n in new_notifs:
         if n.notification_id not in pinged_already:
@@ -807,7 +806,7 @@ def process_notifications(self, cid, notifs):
                 try:
                     if p.timer:
                         p.timer.save()
-                except Exception as e:
+                except Exception:
                     logger.exception("PINGER: Faiiled to add Timer...")
 
 
@@ -822,7 +821,7 @@ def _get_wh_cooloff(wh_id):
 def _set_wh_cooloff(wh_id, cooloff):
     ready_time = timezone.now() + datetime.timedelta(seconds=cooloff)
     unixtime = time.mktime(ready_time.timetuple())
-    cache.set(_build_wh_cache_key(wh_id), unixtime, cooloff+.5)
+    cache.set(_build_wh_cache_key(wh_id), unixtime, cooloff + .5)
 
 
 def _get_cooloff_time(wh_id):
@@ -855,7 +854,7 @@ def send_ping(self, ping_id):
             f"Webhook rate limited: trying again in {wh_sleep} seconds...")
         self.retry(countdown=wh_sleep)
 
-    if ping_ob.ping_sent == True:
+    if ping_ob.ping_sent is True:
         return "Already done!"
 
     if ping_ob.time < CUTTOFF:
@@ -865,10 +864,7 @@ def send_ping(self, ping_id):
     if ping_ob.alerting and not ping_ob.hook.no_at_pings:
         alertText = '"content": "@here", '
 
-    payload = '{%s"embeds": [%s]}' % (
-        alertText,
-        ping_ob.body
-    )
+    payload = f'{{{alertText}"embeds": [{ping_ob.body}]}}'
 
     logger.debug(payload)
     url = ping_ob.hook.discord_webhook
