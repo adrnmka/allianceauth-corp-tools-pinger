@@ -149,13 +149,15 @@ def bootstrap_notification_tasks():
     corps = list(set(all_member_corps_in_audit.values_list(
         "character__corporation_id", flat=True)))
 
+    logger.warning(f"PINGER: Bootstrap found {corps.count()} to check.")
     # fire off tasks for each corp with active models
     for cid in corps:
-        last_char, char_array, next_update = _get_cache_data_for_corp(cid)
+        _, _, next_update = _get_cache_data_for_corp(cid)
         if next_update < -60:  # 1 min since last update should have fired.
             logger.warning(f"PINGER: {cid} Out of Sync, Starting back up!")
             corporation_notification_update.apply_async(
-                args=[cid], priority=TASK_PRIO+1)
+                args=[cid], priority=TASK_PRIO+1
+            )
 
     all_corps_in_audit = CorporationAudit.objects.all()
     for c in all_corps_in_audit:
