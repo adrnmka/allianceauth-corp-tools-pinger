@@ -41,6 +41,7 @@ class DiscordWebhook(models.Model):
 
     fuel_pings = models.BooleanField(default=False)
     lo_pings = models.BooleanField(default=False)
+    gas_pings = models.BooleanField(default=False)
 
     no_at_pings = models.BooleanField(default=False)
 

@@ -4,12 +4,14 @@ Alliance Auth Test Suite Django settings.
 
 from allianceauth.project_template.project_name.settings.base import *
 
-
 # Celery configuration
 CELERY_ALWAYS_EAGER = True  # Forces celery to run locally for testing
 
+SITE_URL = "https://example.com"
+CSRF_TRUSTED_ORIGINS = [SITE_URL]
+
 INSTALLED_APPS += [
-    'moons',
+    'pinger',
     'corptools'
 ]
 
@@ -21,8 +23,20 @@ NOSE_ARGS = [
     # '--exe',  # If your tests need this to be found/run, check they py files are not chmodded +x
 ]
 
-CACHES['default'] = {'BACKEND': 'django.core.cache.backends.db.DatabaseCache'}
-
+CACHES = {
+    "default": {
+        # "BACKEND": "redis_cache.RedisCache",
+        # "LOCATION": "localhost:6379",
+        # "OPTIONS": {
+        #    "DB": 1,
+        # }
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": "redis://localhost:6379/1",
+        "OPTIONS": {
+            "COMPRESSOR": "django_redis.compressors.lzma.LzmaCompressor",
+        }
+    }
+}
 
 PASSWORD_HASHERS = [
     'django.contrib.auth.hashers.MD5PasswordHasher',

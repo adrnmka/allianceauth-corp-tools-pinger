@@ -783,3 +783,146 @@ structureShowInfoData:
 - *id001
 structureTypeID: 35833
 """
+
+
+class StructureNoReagentsAlert(NotificationPing):
+    category = "sturucture-admin"  # Structure Alerts
+
+    """
+    StructureNoReagentsAlert
+
+    solarsystemID: 30004048
+    structureID: &id001 1045920555257
+    structureShowInfoData:
+    - showinfo
+    - 81826
+    - *id001
+    structureTypeID: 81826
+    """
+
+    def build_ping(self):
+        system_db = ctm.MapSystem.objects.get(
+            system_id=self._data['solarsystemID'])
+
+        system_name = system_db.name
+        region_name = system_db.constellation.region.name
+
+        system_name = f"[{system_name}](http://evemaps.dotlan.net/system/{system_name.replace(' ', '_')})"
+        region_name = f"[{region_name}](http://evemaps.dotlan.net/region/{region_name.replace(' ', '_')})"
+
+        structure_type, _ = ctm.EveItemType.objects.get_or_create_from_esi(
+            self._data['structureTypeID'])
+
+        try:
+            structure_name = fetch_location_name(
+                self._data['structureID'], "solar_system", self._notification.character.character.character_id)
+            if structure_name:
+                structure_name = structure_name.location_name
+            else:
+                structure_name = "Unknown"
+
+        except Exception as e:
+            logger.error(f"PINGER: Error fetching structure name? {e}")
+            structure_name = "Unknown"
+
+        title = structure_name
+        body = "Structure Out of Reagents!"
+
+        corp_id = self._notification.character.character.corporation_id
+        corp_ticker = self._notification.character.character.corporation_ticker
+        corp_name = "[%s](https://zkillboard.com/search/%s/)" % \
+            (self._notification.character.character.corporation_name,
+             self._notification.character.character.corporation_name.replace(" ", "%20"))
+        footer = {"icon_url": "https://imageserver.eveonline.com/Corporation/%s_64.png" % (str(corp_id)),
+                  "text": "%s (%s)" % (self._notification.character.character.corporation_name, corp_ticker)}
+        fields = [
+            {'name': 'Corporation', 'value': corp_name, 'inline': True},
+            {'name': 'System', 'value': system_name, 'inline': True},
+            {'name': 'Region', 'value': region_name, 'inline': True},
+            {'name': 'Type', 'value': structure_type.name, 'inline': True}
+        ]
+
+        self.package_ping(title,
+                          body,
+                          self._notification.timestamp,
+                          fields=fields,
+                          footer=footer,
+                          colour=10181046)
+
+        self._corp = self._notification.character.character.corporation_id
+        self._alli = self._notification.character.character.alliance_id
+        self._region = system_db.constellation.region.region_id
+        self.force_at_ping = True
+
+
+class StructureLowReagentsAlert(NotificationPing):
+    category = "sturucture-admin"  # Structure Alerts
+
+    """
+    StructureLowReagentsAlert
+
+    solarsystemID: 30004048
+    structureID: &id001 1045995578326
+    structureShowInfoData:
+    - showinfo
+    - 81826
+    - *id001
+    structureTypeID: 81826
+    """
+
+    def build_ping(self):
+        system_db = ctm.MapSystem.objects.get(
+            system_id=self._data['solarsystemID'])
+
+        system_name = system_db.name
+        region_name = system_db.constellation.region.name
+
+        system_name = f"[{system_name}](http://evemaps.dotlan.net/system/{system_name.replace(' ', '_')})"
+        region_name = f"[{region_name}](http://evemaps.dotlan.net/region/{region_name.replace(' ', '_')})"
+
+        structure_type, _ = ctm.EveItemType.objects.get_or_create_from_esi(
+            self._data['structureTypeID'])
+
+        try:
+            structure_name = fetch_location_name(
+                self._data['structureID'],
+                "solar_system",
+                self._notification.character.character.character_id
+            )
+            if structure_name:
+                structure_name = structure_name.location_name
+            else:
+                structure_name = "Unknown"
+
+        except Exception as e:
+            logger.error(f"PINGER: Error fetching structure name? {e}")
+            structure_name = "Unknown"
+
+        title = structure_name
+        body = "Structure Low Reagents!"
+
+        corp_id = self._notification.character.character.corporation_id
+        corp_ticker = self._notification.character.character.corporation_ticker
+        corp_name = "[%s](https://zkillboard.com/search/%s/)" % \
+            (self._notification.character.character.corporation_name,
+             self._notification.character.character.corporation_name.replace(" ", "%20"))
+        footer = {"icon_url": "https://imageserver.eveonline.com/Corporation/%s_64.png" % (str(corp_id)),
+                  "text": "%s (%s)" % (self._notification.character.character.corporation_name, corp_ticker)}
+        fields = [
+            {'name': 'Corporation', 'value': corp_name, 'inline': True},
+            {'name': 'System', 'value': system_name, 'inline': True},
+            {'name': 'Region', 'value': region_name, 'inline': True},
+            {'name': 'Type', 'value': structure_type.name, 'inline': True}
+        ]
+
+        self.package_ping(title,
+                          body,
+                          self._notification.timestamp,
+                          fields=fields,
+                          footer=footer,
+                          colour=10181046)
+
+        self._corp = self._notification.character.character.corporation_id
+        self._alli = self._notification.character.character.alliance_id
+        self._region = system_db.constellation.region.region_id
+        self.force_at_ping = True

@@ -55,7 +55,15 @@ configurable @ settings
 1. Configure Pinger at `/admin/pinger/pingerconfig/1/change/`
 1. Verify pinger is setup with `python manage.py pinger_stats`
 
-# Optimisation
+# Setup
+
+add periodic task, default timing below.
+
+`pinger.tasks.bootstrap_notification_tasks`
+
+make a new cron `*/10 * * * * *`
+
+# Optimization
 
 ## Separate Worker Queue
 
@@ -88,22 +96,13 @@ killasgroup=true
 priority=998
 ```
 
-### Docker Compose
+## Docker
 
-Add a service to your docker-compose.yml
+add a new worker container
 
 ```compose
   allianceauth_worker_pingbot:
+    container_name: allianceauth_worker_pingbot
     <<: [*allianceauth-base, *allianceauth-health-checks]
-    entrypoint: [
-      "celery",
-      "-A",
-      "myauth",
-      "worker",
-      "--pool=threads",
-      "--concurrency=5",
-      "-Q pingbot"
-      "-n",
-      "worker_%n"
-    ]
+    entrypoint: ["celery","-A","myauth","worker","--pool=threads","--concurrency=10","-Q","pingbot","-n","P_%n"]
 ```

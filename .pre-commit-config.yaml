@@ -6,7 +6,7 @@
 repos:
   # Code Upgrades
   - repo: https://github.com/asottile/pyupgrade
-    rev: v3.16.0
+    rev: v3.17.0
     hooks:
       - id: pyupgrade
         args: [--py38-plus]
@@ -75,7 +75,7 @@ repos:
             swagger\.json
           )
   - repo: https://github.com/editorconfig-checker/editorconfig-checker.python
-    rev: 2.7.3
+    rev: 3.0.3
     hooks:
       - id: editorconfig-checker
         exclude: |
@@ -87,7 +87,7 @@ repos:
             swagger\.json
           )
   - repo: https://github.com/pycqa/flake8
-    rev: 7.1.0
+    rev: 7.1.1
     hooks:
       - id: flake8
         additional_dependencies: [Flake8-pyproject]
@@ -104,7 +104,7 @@ repos:
           - "@trivago/prettier-plugin-sort-imports@3.3.0"
   # Infrastructure
   - repo: https://github.com/tox-dev/pyproject-fmt
-    rev: 2.1.4
+    rev: 2.2.1
     hooks:
       - id: pyproject-fmt
         name: pyproject.toml formatter
@@ -115,7 +115,7 @@ repos:
           - tox==4.14.2 # https://github.com/tox-dev/tox/releases/latest
 
   - repo: https://github.com/abravalheri/validate-pyproject
-    rev: v0.18
+    rev: v0.19
     hooks:
       - id: validate-pyproject
         name: Validate pyproject.toml
