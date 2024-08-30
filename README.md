@@ -49,6 +49,12 @@ configurable @ settings
 # Installation
 
 1. This app requires Corp-Tools to leverage Notification Data, install this first.
+
+- Assumptions made:
+  - All characters that can provide notifications for the pings are loaded into the Character Audit module with at least notifications and roles modules enabled
+  - All corporations that need to be monitored for fuel have a structures token loaded in the Corporation Audit Module.
+  - All corporations that need to get fuel/lo/gas notifications have an assets token loaded in the Corporation Audit Module.
+
 1. `pip install allianceauth-corptools-pinger`
 1. Add `'pinger',` to your `INSTALLED_APPS` in your projects `local.py`
 1. Migrate, Collectstatic, Restart Auth.
@@ -63,7 +69,9 @@ add periodic task, default timing below.
 
 make a new cron `*/10 * * * * *`
 
-# Optimization
+# Optional Optimization
+
+This is only required if you have issues with backlog on your main workers. Generally not an issue for smaller installations.
 
 ## Separate Worker Queue
 
