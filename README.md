@@ -76,7 +76,7 @@ app.conf.task_routes = {.....
                         }
 ```
 
-### Bare Metal
+## Bare Metal
 
 Add program block to `supervisor.conf`
 
@@ -106,3 +106,9 @@ add a new worker container
     <<: [*allianceauth-base, *allianceauth-health-checks]
     entrypoint: ["celery","-A","myauth","worker","--pool=threads","--concurrency=10","-Q","pingbot","-n","P_%n"]
 ```
+
+## Settings
+
+| Name                     | Description                                                   | Default    |
+| ------------------------ | ------------------------------------------------------------- | ---------- |
+| `CT_PINGER_VALID_STATES` | A List of Valid States to be queries for Pinger notifications | ["Member"] |
