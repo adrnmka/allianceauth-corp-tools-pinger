@@ -2,15 +2,15 @@
 Alliance Auth Test Suite Django settings.
 """
 
-from allianceauth.project_template.project_name.settings.base import *
-
-# Celery configuration
-CELERY_ALWAYS_EAGER = True  # Forces celery to run locally for testing
+from allianceauth.project_template.project_name.settings.base import *  # noqa
 
 SITE_URL = "https://example.com"
 CSRF_TRUSTED_ORIGINS = [SITE_URL]
 
-INSTALLED_APPS += [
+# Celery configuration
+CELERY_ALWAYS_EAGER = True  # Forces celery to run locally for testing
+
+INSTALLED_APPS += [ # noqa
     'pinger',
     'corptools'
 ]
@@ -23,20 +23,6 @@ NOSE_ARGS = [
     # '--exe',  # If your tests need this to be found/run, check they py files are not chmodded +x
 ]
 
-CACHES = {
-    "default": {
-        # "BACKEND": "redis_cache.RedisCache",
-        # "LOCATION": "localhost:6379",
-        # "OPTIONS": {
-        #    "DB": 1,
-        # }
-        "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": "redis://localhost:6379/1",
-        "OPTIONS": {
-            "COMPRESSOR": "django_redis.compressors.lzma.LzmaCompressor",
-        }
-    }
-}
 
 PASSWORD_HASHERS = [
     'django.contrib.auth.hashers.MD5PasswordHasher',
@@ -52,3 +38,18 @@ PASSWORD_HASHERS = [
 ESI_SSO_CLIENT_ID = '123'
 ESI_SSO_CLIENT_SECRET = '123'
 ESI_SSO_CALLBACK_URL = '123'
+
+CACHES = {
+    "default": {
+        # "BACKEND": "redis_cache.RedisCache",
+        # "LOCATION": "localhost:6379",
+        # "OPTIONS": {
+        #    "DB": 1,
+        # }
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": "redis://localhost:6379/1",
+        "OPTIONS": {
+            "COMPRESSOR": "django_redis.compressors.lzma.LzmaCompressor",
+        }
+    }
+}
