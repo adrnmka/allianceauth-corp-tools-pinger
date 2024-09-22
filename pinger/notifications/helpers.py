@@ -12,7 +12,7 @@ def timers_enabled():
 
 
 if timers_enabled():  # NOQA
-    from allianceauth.timerboard.models import Timer, TimerType
+    from allianceauth.timerboard.models import Timer
 
 
 def filetime_to_dt(ft):

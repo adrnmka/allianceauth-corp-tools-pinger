@@ -1,9 +1,11 @@
 import datetime
+from functools import wraps
 import hashlib
 import json
 import logging
 import time
 from http.cookiejar import http2time
+from bravado.exception import HTTPError
 
 import requests
 from celery import shared_task
@@ -52,6 +54,45 @@ def get_settings():
     min_time = pc.min_time_between_updates
 
     return alliances, corporations, min_time
+
+
+def set_error_flag(timeout):
+    tout = timezone.now() + datetime.timedelta(seconds=timeout)
+    cache.set("esi_error_timeout", tout, timeout=timeout + 1)
+
+
+def get_error_flag():
+    return cache.get("esi_error_timeout", default=timezone.now())
+
+
+def clear_error_flag():
+    cache.delete("esi_error_timeout")
+
+
+def esi_error_retry(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        _ret = None
+
+        if get_error_flag() >= timezone.now():
+            logger.warning("Hit ESI error limit! will retry tasks!")
+            args[0].retry(countdown=61)
+        else:
+            clear_error_flag()
+        try:
+            _ret = func(*args, **kwargs)
+        except Exception as e:
+            if isinstance(e, (HTTPError)):
+                code = e.status_code
+                if code == 420:
+                    logger.warning(f"Hit ESI error limit! Pausing Tasks! {e}")
+                    set_error_flag(60)
+                    args[0].retry(countdown=61)
+            elif isinstance(e, (OSError)):
+                logger.warning(f"Hit ESI error limit! Pausing Tasks! {e}")
+            raise e
+        return _ret
+    return wrapper
 
 
 def _get_head_id(char_id):
@@ -542,6 +583,7 @@ def corporation_gas_check(self, corporation_id):
 
 
 @shared_task(bind=True, base=QueueOnce, max_retries=None)
+@esi_error_retry
 def corporation_notification_update(self, corporation_id):
     # get oldest token and update notifications chained with a notification check
     data = _get_cache_data_for_corp(corporation_id)

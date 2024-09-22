@@ -466,7 +466,7 @@ class SkyhookDeployed(NotificationPing):
             "text": f"{self._notification.character.character.corporation_name} ({corp_ticker})"
         }
 
-        out_time = timezone.now() + time_till_to_td()
+        #out_time = timezone.now() + time_till_to_td()
 
         fields = [
             {'name': 'Planet', 'value': planet_name, 'inline': True},
