@@ -93,13 +93,13 @@ class Pinger(commands.Cog):
         self.bot = bot
 
     pinger_commands = SlashCommandGroup(
-        "pinger", "Infra Pinger Commands", guild_ids=[int(settings.DISCORD_GUILD_ID)])
+        "pinger", "Infra Pinger Commands", guild_ids=app_settings.get_all_servers())
 
     async def search_systems(ctx: AutocompleteContext):
         """Returns a list of systems that have the characters entered so far."""
         return list(MapSystem.objects.filter(name__icontains=f"{ctx.value}")[:10].values_list("name", flat=True))
 
-    @commands.slash_command(name='attack', guild_ids=[int(settings.DISCORD_GUILD_ID)])
+    @commands.slash_command(name='attack', guild_ids=app_settings.get_all_servers())
     @option("system", description="What System has been attacked?", autocomplete=search_systems)
     @option("message", description="Anything else to add? Narrow it down a bit for the FC's")
     async def sov_hacked(
@@ -236,7 +236,7 @@ class Pinger(commands.Cog):
             output.append(i.decode('utf-8'))
         return output
 
-    @pinger_commands.command(name='mute', guild_ids=[int(settings.DISCORD_GUILD_ID)])
+    @pinger_commands.command(name='mute', guild_ids=app_settings.get_all_servers())
     async def mute_slash(self, ctx, structure: Option(str, autocomplete=get_recent)):
         """
         Mute a structure for 48h....
@@ -253,7 +253,7 @@ class Pinger(commands.Cog):
         else:
             await ctx.respond(f"`{structure}` Could not find structure")
 
-    @pinger_commands.command(name='unmute', guild_ids=[int(settings.DISCORD_GUILD_ID)])
+    @pinger_commands.command(name='unmute', guild_ids=app_settings.get_all_servers())
     async def unmute_slash(self, ctx, structure: Option(str, autocomplete=get_recent)):
         """
         Mute a structure for 48h....
