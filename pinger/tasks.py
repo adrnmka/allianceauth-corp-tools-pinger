@@ -1,13 +1,13 @@
 import datetime
-from functools import wraps
 import hashlib
 import json
 import logging
 import time
+from functools import wraps
 from http.cookiejar import http2time
-from bravado.exception import HTTPError
 
 import requests
+from bravado.exception import HTTPError
 from celery import shared_task
 from corptools.models import (
     CharacterAudit, CorpAsset, CorporationAudit, Structure,
@@ -452,8 +452,8 @@ def corporation_gas_check(self, corporation_id):
         if corp is None:
             corp = struct.corporation.corporation
 
-        th_low = 9240
-        th_crit = 3960
+        th_low = 18480
+        th_crit = 7920
 
         # try:
         #     th_low = struct.gas_th.low
