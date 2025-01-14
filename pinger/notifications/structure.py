@@ -9,8 +9,10 @@ from ..exceptions import MutedException
 from ..models import MutedStructure
 from ..providers import cache_client
 from .base import NotificationPing
-from .helpers import (create_timer, format_timedelta, time_till_to_dt,
-                      time_till_to_string, timers_enabled)
+from .helpers import (
+    create_timer, format_timedelta, time_till_to_dt, time_till_to_string,
+    timers_enabled,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -86,13 +88,13 @@ class StructureLostShields(NotificationPing):
 
         if timers_enabled():
             try:
-                from allianceauth.timerboard.models import TimerType
+                from allianceauth.timerboard.models import Timer
 
                 self.timer = create_timer(
                     structure_name,
                     structure_type.name,
                     system_db.name,
-                    TimerType.ARMOR,
+                    Timer.TimerType.ARMOR,
                     ref_date_time,
                     self._notification.character.character.corporation
                 )
@@ -176,13 +178,13 @@ class StructureLostArmor(NotificationPing):
 
         if timers_enabled():
             try:
-                from allianceauth.timerboard.models import TimerType
+                from allianceauth.timerboard.models import Timer
 
                 self.timer = create_timer(
                     structure_name,
                     structure_type.name,
                     system_db.name,
-                    TimerType.HULL,
+                    Timer.TimerType.HULL,
                     ref_date_time,
                     self._notification.character.character.corporation
                 )
@@ -270,9 +272,9 @@ class StructureUnderAttack(NotificationPing):
 
         corp_id = self._notification.character.character.corporation_id
         corp_ticker = self._notification.character.character.corporation_ticker
-        corp_name = "[%s](https://zkillboard.com/search/%s/)" % \
-            (self._notification.character.character.corporation_name,
-             self._notification.character.character.corporation_name.replace(" ", "%20"))
+        # corp_name = "[%s](https://zkillboard.com/search/%s/)" % \
+        #     (self._notification.character.character.corporation_name,
+        #      self._notification.character.character.corporation_name.replace(" ", "%20"))
         footer = {"icon_url": "https://imageserver.eveonline.com/Corporation/%s_64.png" % (str(corp_id)),
                   "text": "%s (%s)" % (self._notification.character.character.corporation_name, corp_ticker)}
 
