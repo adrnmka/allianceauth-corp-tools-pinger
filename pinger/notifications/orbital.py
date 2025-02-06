@@ -3,11 +3,14 @@ import datetime
 import logging
 
 from corptools import models as ctm
+
 from django.utils import timezone
 
 from .base import NotificationPing
-from .helpers import (create_timer, filetime_to_dt, format_timedelta,
-                      time_till_to_td, timers_enabled)
+from .helpers import (
+    create_timer, filetime_to_dt, format_timedelta, time_till_to_td,
+    timers_enabled,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -486,3 +489,181 @@ class SkyhookDeployed(NotificationPing):
         self._alli = self._notification.character.character.alliance_id
         self._region = system_db.constellation.region.region_id
         self.force_at_ping = True
+
+
+class MercenaryDenAttacked(NotificationPing):
+    """
+    unknown notification type (287)
+    Guestimated to be MercenaryDenAttacked
+    """
+    category = "orbital-attack"  # i guess this is kinda an orbital :-D
+
+    """
+    aggressorAllianceName: Unknown
+    aggressorCharacterID: 800103040
+    aggressorCorporationName: <a href=\"showinfo:2//1715234301\">Isk sellers</a>
+    armorPercentage: 100.0
+    hullPercentage: 100.0
+    itemID: &id001 1047336167535
+    mercenaryDenShowInfoData:
+    - showinfo
+    - 85230
+    - *id001
+    planetID: 40249672
+    planetShowInfoData:
+    - showinfo
+    - 11
+    - 40249672
+    shieldPercentage: 94.93757889836118
+    solarsystemID: 30003945
+    typeID: 85230
+    """
+
+    def build_ping(self):
+        system_db = ctm.MapSystem.objects.get(
+            system_id=self._data['solarsystemID'])
+        planet_db, _ = ctm.MapSystemPlanet.objects.get_or_create_from_esi(
+            planet_id=self._data['planetID'])
+
+        system_name = system_db.name
+        region_name = system_db.constellation.region.name
+        planet_name = planet_db.name
+
+        system_name = f"[{planet_name}](http://evemaps.dotlan.net/system/{system_name.replace(' ', '_')})"
+        region_name = f"[{region_name}](http://evemaps.dotlan.net/region/{region_name.replace(' ', '_')})"
+
+        structure_type, _ = ctm.EveItemType.objects.get_or_create_from_esi(
+            self._data['typeID'])
+
+        title = "Merc Den Under Attack"
+        shld = float(self._data['shieldPercentage'])
+        armr = float(self._data['armorPercentage'])
+        hull = float(self._data['hullPercentage'])
+        body = "{} under Attack!\n[ S: {:.2f}% A: {:.2f}% H: {:.2f}% ]".format(
+            structure_type.name, shld, armr, hull
+        )
+
+        corp_id = self._notification.character.character.corporation_id
+        corp_ticker = self._notification.character.character.corporation_ticker
+        corp_name = "[%s](https://zkillboard.com/search/%s/)" % \
+            (self._notification.character.character.corporation_name,
+             self._notification.character.character.corporation_name.replace(" ", "%20"))
+        footer = {"icon_url": "https://imageserver.eveonline.com/Corporation/%s_64.png" % (str(corp_id)),
+                  "text": "%s (%s)" % (self._notification.character.character.corporation_name, corp_ticker)}
+
+        attacking_char, _ = ctm.EveName.objects.get_or_create_from_esi(
+            self._data['aggressorCharacterID'])
+
+        attackerStr = "[%s](https://zkillboard.com/character/%s/)" % \
+            (
+                attacking_char.name,
+                attacking_char.eve_id
+            )
+
+        fields = [{'name': 'System/Planet', 'value': system_name, 'inline': True},
+                  {'name': 'Region', 'value': region_name, 'inline': True},
+                  {'name': 'Type', 'value': structure_type.name, 'inline': True},
+                  {'name': 'Owner', 'value': corp_name, 'inline': False},
+                  {'name': 'Attacker', 'value': attackerStr, 'inline': False}]
+
+        self.package_ping(title,
+                          body,
+                          self._notification.timestamp,
+                          fields=fields,
+                          footer=footer,
+                          colour=15158332)
+
+        self._corp = self._notification.character.character.corporation_id
+        self._alli = self._notification.character.character.alliance_id
+        self._region = system_db.constellation.region.region_id
+        self.force_at_ping = True
+
+
+class MercenaryDenReinforced(NotificationPing):
+    category = "orbital-attack"  # i guess this is kinda an orbital :-D
+
+    """
+    aggressorAllianceName: &lt;a href="showinfo:16159//99013809"&gt;HYPE-TRAIN&lt;/a&gt;
+    aggressorCharacterID: 708182017
+    aggressorCorporationName: &lt;a href="showinfo:2//98793267"&gt;BRAWLS DEEP&lt;/a&gt;
+    itemID: &amp;id001 1047848379927
+    mercenaryDenShowInfoData:
+    - showinfo
+    - 85230
+    - *id001
+    planetID: 40255737
+    planetShowInfoData:
+    - showinfo
+    - 11
+    - 40255737
+    solarsystemID: 30004038
+    timestampEntered: 133829589044450230
+    timestampExited: 133830637854450230
+    typeID: 85230
+    """
+
+    def build_ping(self):
+        system_db = ctm.MapSystem.objects.get(
+            system_id=self._data['solarsystemID'])
+        planet_db, _ = ctm.MapSystemPlanet.objects.get_or_create_from_esi(
+            planet_id=self._data['planetID'])
+
+        system_name = system_db.name
+        region_name = system_db.constellation.region.name
+        planet_name = planet_db.name
+
+        system_name = f"[{planet_name}](http://evemaps.dotlan.net/system/{system_name.replace(' ', '_')})"
+        region_name = f"[{region_name}](http://evemaps.dotlan.net/region/{region_name.replace(' ', '_')})"
+
+        structure_type, _ = ctm.EveItemType.objects.get_or_create_from_esi(
+            self._data['typeID'])
+
+        _timeTill = filetime_to_dt(self._data['timestampExited']).replace(
+            tzinfo=datetime.timezone.utc)
+        _refTimeDelta = _timeTill - timezone.now()
+        tile_till = format_timedelta(_refTimeDelta)
+
+        title = "Merc Den Reinforced"
+        body = f"{structure_type.name} has lost its Shields"
+
+        corp_id = self._notification.character.character.corporation_id
+        corp_ticker = self._notification.character.character.corporation_ticker
+        corp_name = "[%s](https://zkillboard.com/search/%s/)" % \
+            (self._notification.character.character.corporation_name,
+             self._notification.character.character.corporation_name.replace(" ", "%20"))
+        footer = {"icon_url": "https://imageserver.eveonline.com/Corporation/%s_64.png" % (str(corp_id)),
+                  "text": "%s (%s)" % (self._notification.character.character.corporation_name, corp_ticker)}
+
+        fields = [{'name': 'System/Planet', 'value': system_name, 'inline': True},
+                  {'name': 'Region', 'value': region_name, 'inline': True},
+                  {'name': 'Type', 'value': structure_type.name, 'inline': True},
+                  {'name': 'Owner', 'value': corp_name, 'inline': False},
+                  {'name': 'Time Till Out', 'value': tile_till, 'inline': False},
+                  {'name': 'Date Out', 'value': _timeTill.strftime("%Y-%m-%d %H:%M"), 'inline': False}]
+
+        self.package_ping(title,
+                          body,
+                          self._notification.timestamp,
+                          fields=fields,
+                          footer=footer,
+                          colour=7419530)
+
+        if timers_enabled():
+            try:
+                from allianceauth.timerboard.models import TimerType
+
+                self.timer = create_timer(
+                    f"{planet_name} Merc Den",
+                    structure_type.name,
+                    system_db.name,
+                    TimerType.ARMOR,
+                    _timeTill,
+                    self._notification.character.character.corporation
+                )
+            except Exception as e:
+                logger.exception(
+                    f"PINGER: Failed to build timer Merc Den Reinforced {e}")
+
+        self._corp = self._notification.character.character.corporation_id
+        self._alli = self._notification.character.character.alliance_id
+        self._region = system_db.constellation.region.region_id
