@@ -53,3 +53,5 @@ CACHES = {
         }
     }
 }
+
+ESI_USER_CONTACT_EMAIL = "test@email.com.au"
