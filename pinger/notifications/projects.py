@@ -1,8 +1,10 @@
 
+from corptools import models as ctm
+
+from django.utils.html import strip_tags
+
 from allianceauth.eveonline.evelinks import eveimageserver, evewho, zkillboard
 from allianceauth.eveonline.models import EveCharacter
-from corptools import models as ctm
-from django.utils.html import strip_tags
 
 from .base import NotificationPing
 
@@ -34,7 +36,7 @@ class CorporationGoalCreated(NotificationPing):
                   "text": f"{app_corp.name}"
                   }
 
-        fields = [{'name': 'Creator', 'value': f"[{creator}](https://evewho.com/character/{creator.eve_id}/)", 'inline': True},
+        fields = [{'name': 'Creator', 'value': f"[{creator}]({evewho.character_url(creator.eve_id)})", 'inline': True},
                   {'name': 'Corporation', 'value': corp_name, 'inline': True}]
 
         self.package_ping(title,
@@ -82,7 +84,7 @@ class CorporationGoalClosed(NotificationPing):
                   "text": f"{app_corp.name}"
                   }
 
-        fields = [{'name': 'Creator', 'value': f"[{creator}](https://evewho.com/character/{creator.eve_id}/)", 'inline': True},
+        fields = [{'name': 'Creator', 'value': f"[{creator}]({evewho.character_url(creator.eve_id)})", 'inline': True},
                   {'name': 'Corporation', 'value': corp_name, 'inline': True}]
 
         self.package_ping(title,
@@ -124,7 +126,7 @@ class CorporationGoalCompleted(NotificationPing):
                   "text": f"{app_corp.name}"
                   }
 
-        fields = [{'name': 'Creator', 'value': f"[{creator}](https://evewho.com/character/{creator.eve_id}/)", 'inline': True},
+        fields = [{'name': 'Creator', 'value': f"[{creator}]({evewho.character_url(creator.eve_id)})", 'inline': True},
                   {'name': 'Corporation', 'value': corp_name, 'inline': True}]
 
         self.package_ping(title,
@@ -166,7 +168,7 @@ class CorporationGoalExpired(NotificationPing):
                   "text": f"{app_corp.name}"
                   }
 
-        fields = [{'name': 'Creator', 'value': f"[{creator}](https://evewho.com/character/{creator.eve_id}/)", 'inline': True},
+        fields = [{'name': 'Creator', 'value': f"[{creator}]({evewho.character_url(creator.eve_id)})", 'inline': True},
                   {'name': 'Corporation', 'value': corp_name, 'inline': True}]
 
         self.package_ping(title,
@@ -208,7 +210,7 @@ class CorporationGoalLimitReached(NotificationPing):
                   "text": f"{app_corp.name}"
                   }
 
-        fields = [{'name': 'Creator', 'value': f"[{creator}](https://evewho.com/character/{creator.eve_id}/)", 'inline': True},
+        fields = [{'name': 'Creator', 'value': f"[{creator}]({evewho.character_url(creator.eve_id)})", 'inline': True},
                   {'name': 'Corporation', 'value': corp_name, 'inline': True}]
 
         self.package_ping(title,

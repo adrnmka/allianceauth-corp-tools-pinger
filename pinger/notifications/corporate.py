@@ -1,8 +1,10 @@
 
+from corptools import models as ctm
+
+from django.utils.html import strip_tags
+
 from allianceauth.eveonline.evelinks import eveimageserver, evewho, zkillboard
 from allianceauth.eveonline.models import EveCharacter
-from corptools import models as ctm
-from django.utils.html import strip_tags
 
 from .base import NotificationPing
 
@@ -40,7 +42,7 @@ class CorpAppAcceptMsg(NotificationPing):
                   "text": f"{app_corp.name}"
                   }
 
-        fields = [{'name': 'Character', 'value': f"[{app_char}](https://evewho.com/character/{app_char.eve_id}/)", 'inline': True},
+        fields = [{'name': 'Character', 'value': f"[{app_char}]({evewho.character_url(app_char.eve_id)})", 'inline': True},
                   {'name': 'Corporation', 'value': corp_name, 'inline': True},
                   {'name': 'Main Character', 'value': eve_main, 'inline': True}]
 
@@ -77,7 +79,7 @@ class CorpAppInvitedMsg(NotificationPing):
         try:
             eve_main = EveCharacter.objects.get(
                 character_id=self._data['charID']).character_ownership.user.profile.main_character
-            eve_main = f"[{eve_main.character_name}](https://evewho.com/character/{eve_main.character_id}/) [ [{eve_main.corporation_ticker}](https://evewho.com/corporation/{eve_main.corporation_id}) ]"
+            eve_main = f"[{eve_main.character_name}]({evewho.character_url(eve_main.character_id)}) [ [{eve_main.corporation_ticker}]({evewho.corporation_url(eve_main.corporation_id)}) ]"
         except:
             eve_main = "Unknown"
 
@@ -91,7 +93,7 @@ class CorpAppInvitedMsg(NotificationPing):
         footer = {"icon_url": "https://imageserver.eveonline.com/Corporation/%s_64.png" % (str(corp_id)),
                   "text": "%s (%s)" % (self._notification.character.character.corporation_name, corp_ticker)}
 
-        fields = [{'name': 'Character', 'value': f"[{app_char}](https://evewho.com/character/{app_char.eve_id}/)", 'inline': True},
+        fields = [{'name': 'Character', 'value': f"[{app_char}]({evewho.character_url(app_char.eve_id)})", 'inline': True},
                   {'name': 'Invoking Character',
                       'value': invoked_by.name, 'inline': True},
                   {'name': 'Corporation', 'value': corp_name, 'inline': True},
@@ -127,7 +129,7 @@ class CorpAppNewMsg(NotificationPing):
         try:
             eve_main = EveCharacter.objects.get(
                 character_id=self._data['charID']).character_ownership.user.profile.main_character
-            eve_main = f"[{eve_main.character_name}](https://evewho.com/character/{eve_main.character_id}/) [ [{eve_main.corporation_ticker}](https://evewho.com/corporation/{eve_main.corporation_id}) ]"
+            eve_main = f"[{eve_main.character_name}]({evewho.character_url(eve_main.character_id)}) [ [{eve_main.corporation_ticker}]({evewho.corporation_url(eve_main.corporation_id)}) ]"
         except:
             eve_main = "Unknown"
 
@@ -141,7 +143,7 @@ class CorpAppNewMsg(NotificationPing):
         footer = {"icon_url": "https://imageserver.eveonline.com/Corporation/%s_64.png" % (str(corp_id)),
                   "text": "%s (%s)" % (self._notification.character.character.corporation_name, corp_ticker)}
 
-        fields = [{'name': 'Character', 'value': f"[{app_char}](https://evewho.com/character/{app_char.eve_id}/)", 'inline': True},
+        fields = [{'name': 'Character', 'value': f"[{app_char}]({evewho.character_url(app_char.eve_id)})", 'inline': True},
                   {'name': 'Corporation', 'value': corp_name, 'inline': True},
                   {'name': 'Main Character', 'value': eve_main, 'inline': True}]
 
@@ -175,7 +177,7 @@ class CorpAppRejectMsg(NotificationPing):
         try:
             eve_main = EveCharacter.objects.get(
                 character_id=self._data['charID']).character_ownership.user.profile.main_character
-            eve_main = f"[{eve_main.character_name}](https://evewho.com/character/{eve_main.character_id}/) [ [{eve_main.corporation_ticker}](https://evewho.com/corporation/{eve_main.corporation_id}) ]"
+            eve_main = f"[{eve_main.character_name}]({evewho.character_url(eve_main.character_id)}) [ [{eve_main.corporation_ticker}]({evewho.corporation_url(eve_main.corporation_id)}) ]"
         except:
             eve_main = "Unknown"
         body = f"```{strip_tags(self._data['applicationText'])}```\n"
@@ -188,7 +190,7 @@ class CorpAppRejectMsg(NotificationPing):
         footer = {"icon_url": "https://imageserver.eveonline.com/Corporation/%s_64.png" % (str(corp_id)),
                   "text": "%s (%s)" % (self._notification.character.character.corporation_name, corp_ticker)}
 
-        fields = [{'name': 'Character', 'value': f"[{app_char}](https://evewho.com/character/{app_char.eve_id}/)", 'inline': True},
+        fields = [{'name': 'Character', 'value': f"[{app_char}]({evewho.character_url(app_char.eve_id)})", 'inline': True},
                   {'name': 'Corporation', 'value': corp_name, 'inline': True},
                   {'name': 'Main Character', 'value': eve_main, 'inline': True}]
 
