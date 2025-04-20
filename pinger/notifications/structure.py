@@ -286,6 +286,8 @@ class StructureUnderAttack(NotificationPing):
             self._data["structureTypeID"]
         )
 
+        _url = eveimageserver.type_icon_url(self._data["structureTypeID"], 64)
+
         try:
             structure_name = fetch_location_name(
                 self._data["structureID"],
@@ -327,10 +329,10 @@ class StructureUnderAttack(NotificationPing):
         )
 
         attackerStr = "%s%s%s" % (
-            f"*[{attacking_char.name}]({zkillboard.character_url(attacking_char.eve_id)})*",
-            f", [{attacking_char.corporation.name}]({zkillboard.corporation_url(attacking_char.corporation.eve_id)})",
+            f"*[{attacking_char.name}](https://zkillboard.com/search/{attacking_char.name}/)*",
+            f", [{attacking_char.corporation.name}](https://zkillboard.com/search/{attacking_char.corporation.name}/)",
             (
-                f", **[{attacking_char.alliance.name}]({zkillboard.alliance_url(attacking_char.alliance.eve_id)})**"
+                f", **[{attacking_char.alliance.name}](https://zkillboard.com/search/{attacking_char.alliance.name}/)**"
                 if attacking_char.alliance
                 else ""
             ),
@@ -347,6 +349,7 @@ class StructureUnderAttack(NotificationPing):
             title,
             body,
             self._notification.timestamp,
+            img_url=_url,
             fields=fields,
             footer=footer,
             colour=15158332,
