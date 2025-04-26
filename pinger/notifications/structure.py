@@ -297,6 +297,10 @@ class StructureUnderAttack(NotificationPing):
             if structure_name:
                 structure_name = structure_name.location_name
             else:
+                logger.error(
+                    f"PINGER: Fetched structure_name: {structure_name} "
+                    f"(structureID={self._data['structureID']}, charID={self._notification.character.character.character_id})"
+                )
                 structure_name = "Unknown"
 
         except Exception as e:
@@ -331,19 +335,20 @@ class StructureUnderAttack(NotificationPing):
         char_name = getattr(attacking_char, "name", "") or ""
         char_id = getattr(attacking_char, "eve_id", "") or ""
 
-        corp = attacking_char.corporation
-        corp_name = getattr(corp, "name", "") if corp else ""
-        corp_id = getattr(corp, "eve_id", "") if corp else ""
+        attackerStr = f"*[{char_name}](https://zkillboard.com/character/{char_id}/)*"
 
-        alliance = attacking_char.alliance
-        alliance_name = getattr(alliance, "name", "") if alliance else ""
-        alliance_id = getattr(alliance, "eve_id", "") if alliance else ""
+        # Only add corporation if it exists
+        if attacking_char.corporation:
+            corp_name = getattr(attacking_char.corporation, "name", "") or ""
+            corp_id = getattr(attacking_char.corporation, "eve_id", "") or ""
+            attackerStr += (
+                f", [{corp_name}](https://zkillboard.com/corporation/{corp_id})"
+            )
 
-        attackerStr = (
-            f"*[{char_name}](https://zkillboard.com/character/{char_id}/)*"
-            f", [{corp_name}](https://zkillboard.com/corporation/{corp_id})"
-        )
-        if alliance_name and alliance_id:
+        # Only add alliance if it exists
+        if attacking_char.alliance:
+            alliance_name = getattr(attacking_char.alliance, "name", "") or ""
+            alliance_id = getattr(attacking_char.alliance, "eve_id", "") or ""
             attackerStr += f", **[{alliance_name}](https://zkillboard.com/alliance/{alliance_id})**"
 
         fields = [
