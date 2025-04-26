@@ -298,14 +298,13 @@ class StructureUnderAttack(NotificationPing):
                 structure_name = structure_name.location_name
             else:
                 logger.error(
-                    f"PINGER: Fetched structure_name: {structure_name} "
+                    f"PINGER: Failed to fetch structure_name: {structure_name} "
                     f"(structureID={self._data['structureID']}, charID={self._notification.character.character.character_id})"
                 )
-                structure_name = "Unknown"
-
+                structure_name = "Attack Notification"
         except Exception as e:
             logger.error(f"PINGER: Error fetching structure name? {e}")
-            structure_name = "Unknown"
+            structure_name = "Attack Notification"
 
         title = structure_name
         shld = float(self._data["shieldPercentage"])
