@@ -328,15 +328,23 @@ class StructureUnderAttack(NotificationPing):
             self._data["charID"]
         )
 
-        attackerStr = "%s%s%s" % (
-            f"*[{attacking_char.name}](https://zkillboard.com/search/{attacking_char.name}/)*",
-            f", [{attacking_char.corporation.name}](https://zkillboard.com/search/{attacking_char.corporation.name}/)",
-            (
-                f", **[{attacking_char.alliance.name}](https://zkillboard.com/search/{attacking_char.alliance.name}/)**"
-                if attacking_char.alliance
-                else ""
-            ),
+        char_name = getattr(attacking_char, "name", "") or ""
+        char_id = getattr(attacking_char, "eve_id", "") or ""
+
+        corp = attacking_char.corporation
+        corp_name = getattr(corp, "name", "") if corp else ""
+        corp_id = getattr(corp, "eve_id", "") if corp else ""
+
+        alliance = attacking_char.alliance
+        alliance_name = getattr(alliance, "name", "") if alliance else ""
+        alliance_id = getattr(alliance, "eve_id", "") if alliance else ""
+
+        attackerStr = (
+            f"*[{char_name}](https://zkillboard.com/character/{char_id}/)*"
+            f", [{corp_name}](https://zkillboard.com/corporation/{corp_id})"
         )
+        if alliance_name and alliance_id:
+            attackerStr += f", **[{alliance_name}](https://zkillboard.com/alliance/{alliance_id})**"
 
         fields = [
             {"name": "System", "value": system_name, "inline": True},
