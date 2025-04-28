@@ -34,21 +34,20 @@ class MoonminingExtractionFinished(NotificationPing):
     """
 
     def build_ping(self):
-        system_db = ctm.MapSystem.objects.get(
-            system_id=self._data['solarSystemID'])
+        system_db = ctm.MapSystem.objects.get(system_id=self._data["solarSystemID"])
 
         system_name = system_db.name
         system_name = f"[{system_name}]({dotlan.solar_system_url(system_name)})"
 
         structure_type, _ = ctm.EveItemType.objects.get_or_create_from_esi(
-            self._data['structureTypeID'])
+            self._data["structureTypeID"]
+        )
 
-        structure_name = self._data['structureName']
+        structure_name = self._data["structureName"]
         if len(structure_name) < 1:
-            structure_name = "Unknown"
+            structure_name = "Moon Notification"
 
-        moon, _ = ctm.MapSystemMoon.objects.get_or_create_from_esi(
-            self._data['moonID'])
+        moon, _ = ctm.MapSystemMoon.objects.get_or_create_from_esi(self._data["moonID"])
 
         title = "Moon Extraction Complete!"
         body = "Ready to Fracture!"
@@ -56,39 +55,43 @@ class MoonminingExtractionFinished(NotificationPing):
         corp_id = self._notification.character.character.corporation_id
         corp_ticker = self._notification.character.character.corporation_ticker
 
-        footer = {"icon_url": eveimageserver.corporation_logo_url(corp_id, 64),
-                  "text": "%s (%s)" % (self._notification.character.character.corporation_name, corp_ticker)}
+        footer = {
+            "icon_url": eveimageserver.corporation_logo_url(corp_id, 64),
+            "text": "%s (%s)"
+            % (self._notification.character.character.corporation_name, corp_ticker),
+        }
 
-        auto_time = filetime_to_dt(self._data['autoTime'])
+        auto_time = filetime_to_dt(self._data["autoTime"])
         ores = {}
         totalm3 = 0
-        for t, q in self._data['oreVolumeByType'].items():
+        for t, q in self._data["oreVolumeByType"].items():
             ore, _ = ctm.EveItemType.objects.get_or_create_from_esi(t)
             ores[t] = ore.name
             totalm3 += q
         ore_string = []
-        for t, q in self._data['oreVolumeByType'].items():
-            ore_string.append(
-                "**{}**: {:2.1f}%".format(
-                    ores[t],
-                    q/totalm3*100
-                )
-            )
-        fields = [{'name': 'Structure', 'value': structure_name, 'inline': True},
-                  {'name': 'System', 'value': system_name, 'inline': True},
-                  {'name': 'Moon', 'value': moon.name, 'inline': True},
-                  {'name': 'Type', 'value': structure_type.name, 'inline': True},
-                  {'name': 'Auto Fire', 'value': auto_time.strftime(
-                      "%Y-%m-%d %H:%M"), 'inline': False},
-                  {'name': 'Ore', 'value': "\n".join(ore_string)},
-                  ]
+        for t, q in self._data["oreVolumeByType"].items():
+            ore_string.append("**{}**: {:2.1f}%".format(ores[t], q / totalm3 * 100))
+        fields = [
+            {"name": "Structure", "value": structure_name, "inline": True},
+            {"name": "System", "value": system_name, "inline": True},
+            {"name": "Moon", "value": moon.name, "inline": True},
+            {"name": "Type", "value": structure_type.name, "inline": True},
+            {
+                "name": "Auto Fire",
+                "value": auto_time.strftime("%Y-%m-%d %H:%M"),
+                "inline": False,
+            },
+            {"name": "Ore", "value": "\n".join(ore_string)},
+        ]
 
-        self.package_ping(title,
-                          body,
-                          self._notification.timestamp,
-                          fields=fields,
-                          footer=footer,
-                          colour=3066993)
+        self.package_ping(
+            title,
+            body,
+            self._notification.timestamp,
+            fields=fields,
+            footer=footer,
+            colour=3066993,
+        )
 
         self._corp = self._notification.character.character.corporation_id
         self._alli = self._notification.character.character.alliance_id
@@ -116,21 +119,20 @@ class MoonminingAutomaticFracture(NotificationPing):
     """
 
     def build_ping(self):
-        system_db = ctm.MapSystem.objects.get(
-            system_id=self._data['solarSystemID'])
+        system_db = ctm.MapSystem.objects.get(system_id=self._data["solarSystemID"])
 
         system_name = system_db.name
         system_name = f"[{system_name}]({dotlan.solar_system_url(system_name)})"
 
         structure_type, _ = ctm.EveItemType.objects.get_or_create_from_esi(
-            self._data['structureTypeID'])
+            self._data["structureTypeID"]
+        )
 
-        structure_name = self._data['structureName']
+        structure_name = self._data["structureName"]
         if len(structure_name) < 1:
-            structure_name = "Unknown"
+            structure_name = "Moon Notification"
 
-        moon, _ = ctm.MapSystemMoon.objects.get_or_create_from_esi(
-            self._data['moonID'])
+        moon, _ = ctm.MapSystemMoon.objects.get_or_create_from_esi(self._data["moonID"])
 
         title = "Moon Auto-Fractured!"
         body = "Ready to Mine!"
@@ -138,36 +140,37 @@ class MoonminingAutomaticFracture(NotificationPing):
         corp_id = self._notification.character.character.corporation_id
         corp_ticker = self._notification.character.character.corporation_ticker
 
-        footer = {"icon_url": eveimageserver.corporation_logo_url(corp_id, 64),
-                  "text": "%s (%s)" % (self._notification.character.character.corporation_name, corp_ticker)}
+        footer = {
+            "icon_url": eveimageserver.corporation_logo_url(corp_id, 64),
+            "text": "%s (%s)"
+            % (self._notification.character.character.corporation_name, corp_ticker),
+        }
 
         ores = {}
         totalm3 = 0
-        for t, q in self._data['oreVolumeByType'].items():
+        for t, q in self._data["oreVolumeByType"].items():
             ore, _ = ctm.EveItemType.objects.get_or_create_from_esi(t)
             ores[t] = ore.name
             totalm3 += q
         ore_string = []
-        for t, q in self._data['oreVolumeByType'].items():
-            ore_string.append(
-                "**{}**: {:2.1f}%".format(
-                    ores[t],
-                    q/totalm3*100
-                )
-            )
-        fields = [{'name': 'Structure', 'value': structure_name, 'inline': True},
-                  {'name': 'System', 'value': system_name, 'inline': True},
-                  {'name': 'Moon', 'value': moon.name, 'inline': True},
-                  {'name': 'Type', 'value': structure_type.name, 'inline': True},
-                  {'name': 'Ore', 'value': "\n".join(ore_string)},
-                  ]
+        for t, q in self._data["oreVolumeByType"].items():
+            ore_string.append("**{}**: {:2.1f}%".format(ores[t], q / totalm3 * 100))
+        fields = [
+            {"name": "Structure", "value": structure_name, "inline": True},
+            {"name": "System", "value": system_name, "inline": True},
+            {"name": "Moon", "value": moon.name, "inline": True},
+            {"name": "Type", "value": structure_type.name, "inline": True},
+            {"name": "Ore", "value": "\n".join(ore_string)},
+        ]
 
-        self.package_ping(title,
-                          body,
-                          self._notification.timestamp,
-                          fields=fields,
-                          footer=footer,
-                          colour=15844367)
+        self.package_ping(
+            title,
+            body,
+            self._notification.timestamp,
+            fields=fields,
+            footer=footer,
+            colour=15844367,
+        )
 
         self._corp = self._notification.character.character.corporation_id
         self._alli = self._notification.character.character.alliance_id
@@ -197,60 +200,61 @@ class MoonminingLaserFired(NotificationPing):
     """
 
     def build_ping(self):
-        system_db = ctm.MapSystem.objects.get(
-            system_id=self._data['solarSystemID'])
+        system_db = ctm.MapSystem.objects.get(system_id=self._data["solarSystemID"])
 
         system_name = system_db.name
         system_name = f"[{system_name}]({dotlan.solar_system_url(system_name)})"
 
         structure_type, _ = ctm.EveItemType.objects.get_or_create_from_esi(
-            self._data['structureTypeID'])
+            self._data["structureTypeID"]
+        )
 
-        structure_name = self._data['structureName']
+        structure_name = self._data["structureName"]
         if len(structure_name) < 1:
-            structure_name = "Unknown"
+            structure_name = "Moon Notification"
 
-        moon, _ = ctm.MapSystemMoon.objects.get_or_create_from_esi(
-            self._data['moonID'])
+        moon, _ = ctm.MapSystemMoon.objects.get_or_create_from_esi(self._data["moonID"])
 
         title = "Moon Laser Fired!"
         body = "Fired By [{0}](https://zkillboard.com/search/{1}/)".format(
-            strip_tags(self._data['firedByLink']),
-            strip_tags(self._data['firedByLink']).replace(" ", "%20"))
+            strip_tags(self._data["firedByLink"]),
+            strip_tags(self._data["firedByLink"]).replace(" ", "%20"),
+        )
 
         corp_id = self._notification.character.character.corporation_id
         corp_ticker = self._notification.character.character.corporation_ticker
 
-        footer = {"icon_url": eveimageserver.corporation_logo_url(corp_id, 64),
-                  "text": "%s (%s)" % (self._notification.character.character.corporation_name, corp_ticker)}
+        footer = {
+            "icon_url": eveimageserver.corporation_logo_url(corp_id, 64),
+            "text": "%s (%s)"
+            % (self._notification.character.character.corporation_name, corp_ticker),
+        }
 
         ores = {}
         totalm3 = 0
-        for t, q in self._data['oreVolumeByType'].items():
+        for t, q in self._data["oreVolumeByType"].items():
             ore, _ = ctm.EveItemType.objects.get_or_create_from_esi(t)
             ores[t] = ore.name
             totalm3 += q
         ore_string = []
-        for t, q in self._data['oreVolumeByType'].items():
-            ore_string.append(
-                "**{}**: {:2.1f}%".format(
-                    ores[t],
-                    q/totalm3*100
-                )
-            )
-        fields = [{'name': 'Structure', 'value': structure_name, 'inline': True},
-                  {'name': 'System', 'value': system_name, 'inline': True},
-                  {'name': 'Moon', 'value': moon.name, 'inline': True},
-                  {'name': 'Type', 'value': structure_type.name, 'inline': True},
-                  {'name': 'Ore', 'value': "\n".join(ore_string)},
-                  ]
+        for t, q in self._data["oreVolumeByType"].items():
+            ore_string.append("**{}**: {:2.1f}%".format(ores[t], q / totalm3 * 100))
+        fields = [
+            {"name": "Structure", "value": structure_name, "inline": True},
+            {"name": "System", "value": system_name, "inline": True},
+            {"name": "Moon", "value": moon.name, "inline": True},
+            {"name": "Type", "value": structure_type.name, "inline": True},
+            {"name": "Ore", "value": "\n".join(ore_string)},
+        ]
 
-        self.package_ping(title,
-                          body,
-                          self._notification.timestamp,
-                          fields=fields,
-                          footer=footer,
-                          colour=1752220)
+        self.package_ping(
+            title,
+            body,
+            self._notification.timestamp,
+            fields=fields,
+            footer=footer,
+            colour=1752220,
+        )
 
         self._corp = self._notification.character.character.corporation_id
         self._alli = self._notification.character.character.alliance_id
@@ -282,67 +286,74 @@ class MoonminingExtractionStarted(NotificationPing):
     """
 
     def build_ping(self):
-        system_db = ctm.MapSystem.objects.get(
-            system_id=self._data['solarSystemID'])
+        system_db = ctm.MapSystem.objects.get(system_id=self._data["solarSystemID"])
 
         system_name = system_db.name
         system_name = f"[{system_name}]({dotlan.solar_system_url(system_name)})"
 
         structure_type, _ = ctm.EveItemType.objects.get_or_create_from_esi(
-            self._data['structureTypeID'])
+            self._data["structureTypeID"]
+        )
 
-        structure_name = self._data['structureName']
+        structure_name = self._data["structureName"]
         if len(structure_name) < 1:
-            structure_name = "Unknown"
+            structure_name = "Moon Notification"
 
-        moon, _ = ctm.MapSystemMoon.objects.get_or_create_from_esi(
-            self._data['moonID'])
+        moon, _ = ctm.MapSystemMoon.objects.get_or_create_from_esi(self._data["moonID"])
 
         title = "Moon Extraction Started!"
         body = "Fired By [{0}](https://zkillboard.com/search/{1}/)".format(
-            strip_tags(self._data['startedByLink']),
-            strip_tags(self._data['startedByLink']).replace(" ", "%20"))
+            strip_tags(self._data["startedByLink"]),
+            strip_tags(self._data["startedByLink"]).replace(" ", "%20"),
+        )
 
         corp_id = self._notification.character.character.corporation_id
         corp_ticker = self._notification.character.character.corporation_ticker
 
-        footer = {"icon_url": eveimageserver.corporation_logo_url(corp_id, 64),
-                  "text": "%s (%s)" % (self._notification.character.character.corporation_name, corp_ticker)}
+        footer = {
+            "icon_url": eveimageserver.corporation_logo_url(corp_id, 64),
+            "text": "%s (%s)"
+            % (self._notification.character.character.corporation_name, corp_ticker),
+        }
 
-        auto_time = filetime_to_dt(self._data['autoTime'])
-        ready_time = filetime_to_dt(self._data['readyTime'])
+        auto_time = filetime_to_dt(self._data["autoTime"])
+        ready_time = filetime_to_dt(self._data["readyTime"])
 
         ores = {}
         totalm3 = 0
-        for t, q in self._data['oreVolumeByType'].items():
+        for t, q in self._data["oreVolumeByType"].items():
             ore, _ = ctm.EveItemType.objects.get_or_create_from_esi(t)
             ores[t] = ore.name
             totalm3 += q
         ore_string = []
-        for t, q in self._data['oreVolumeByType'].items():
-            ore_string.append(
-                "**{}**: {:2.1f}%".format(
-                    ores[t],
-                    q/totalm3*100
-                )
-            )
-        fields = [{'name': 'Structure', 'value': structure_name, 'inline': True},
-                  {'name': 'System', 'value': system_name, 'inline': True},
-                  {'name': 'Moon', 'value': moon.name, 'inline': True},
-                  {'name': 'Type', 'value': structure_type.name, 'inline': True},
-                  {'name': 'Ready Time', 'value': ready_time.strftime(
-                      "%Y-%m-%d %H:%M"), 'inline': False},
-                  {'name': 'Auto Fire', 'value': auto_time.strftime(
-                      "%Y-%m-%d %H:%M"), 'inline': False},
-                  {'name': 'Ore', 'value': "\n".join(ore_string)},
-                  ]
+        for t, q in self._data["oreVolumeByType"].items():
+            ore_string.append("**{}**: {:2.1f}%".format(ores[t], q / totalm3 * 100))
+        fields = [
+            {"name": "Structure", "value": structure_name, "inline": True},
+            {"name": "System", "value": system_name, "inline": True},
+            {"name": "Moon", "value": moon.name, "inline": True},
+            {"name": "Type", "value": structure_type.name, "inline": True},
+            {
+                "name": "Ready Time",
+                "value": ready_time.strftime("%Y-%m-%d %H:%M"),
+                "inline": False,
+            },
+            {
+                "name": "Auto Fire",
+                "value": auto_time.strftime("%Y-%m-%d %H:%M"),
+                "inline": False,
+            },
+            {"name": "Ore", "value": "\n".join(ore_string)},
+        ]
 
-        self.package_ping(title,
-                          body,
-                          self._notification.timestamp,
-                          fields=fields,
-                          footer=footer,
-                          colour=1752220)
+        self.package_ping(
+            title,
+            body,
+            self._notification.timestamp,
+            fields=fields,
+            footer=footer,
+            colour=1752220,
+        )
 
         self._corp = self._notification.character.character.corporation_id
         self._alli = self._notification.character.character.alliance_id

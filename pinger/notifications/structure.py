@@ -58,11 +58,11 @@ class StructureLostShields(NotificationPing):
             if structure_name:
                 structure_name = structure_name.location_name
             else:
-                structure_name = "Unknown"
+                structure_name = "Attack Notification"
 
         except Exception as e:
             logger.error(f"PINGER: Error fetching structure name? {e}")
-            structure_name = "Unknown"
+            structure_name = "Attack Notification"
 
         _secondsRemaining = self._data["timeLeft"] / 10000000  # seconds
         _refTimeDelta = datetime.timedelta(seconds=_secondsRemaining)
@@ -164,11 +164,11 @@ class StructureLostArmor(NotificationPing):
             if structure_name:
                 structure_name = structure_name.location_name
             else:
-                structure_name = "Unknown"
+                structure_name = "Attack Notification"
 
         except Exception as e:
             logger.error(f"PINGER: Error fetching structure name? {e}")
-            structure_name = "Unknown"
+            structure_name = "Attack Notification"
 
         _secondsRemaining = self._data["timeLeft"] / 10000000  # seconds
         _refTimeDelta = datetime.timedelta(seconds=_secondsRemaining)
@@ -502,11 +502,11 @@ class StructureAnchoring(NotificationPing):
             if structure_name:
                 structure_name = structure_name.location_name
             else:
-                structure_name = "Unknown"
+                structure_name = "Structure Notification"
 
         except Exception as e:
             logger.error(f"PINGER: Error fetching structure name? {e}")
-            structure_name = "Unknown"
+            structure_name = "Structure Notification"
 
         title = structure_name
         body = "Structure Anchoring!"
@@ -581,11 +581,11 @@ class StructureWentLowPower(NotificationPing):
             if structure_name:
                 structure_name = structure_name.location_name
             else:
-                structure_name = "Unknown"
+                structure_name = "Structure Notification"
 
         except Exception as e:
             logger.error(f"PINGER: Error fetching structure name? {e}")
-            structure_name = "Unknown"
+            structure_name = "Structure Notification"
 
         title = structure_name
         body = "Structure Went Low Power!"
@@ -661,11 +661,11 @@ class StructureWentHighPower(NotificationPing):
             if structure_name:
                 structure_name = structure_name.location_name
             else:
-                structure_name = "Unknown"
+                structure_name = "Structure Notification"
 
         except Exception as e:
             logger.error(f"PINGER: Error fetching structure name? {e}")
-            structure_name = "Unknown"
+            structure_name = "Structure Notification"
 
         title = structure_name
         body = "Structure Went High Power!"
@@ -747,11 +747,11 @@ class StructureUnanchoring(NotificationPing):
             if structure_name:
                 structure_name = structure_name.location_name
             else:
-                structure_name = "Unknown"
+                structure_name = "Structure Notification"
 
         except Exception as e:
             logger.error(f"PINGER: Error fetching structure name? {e}")
-            structure_name = "Unknown"
+            structure_name = "Structure Notification"
 
         title = structure_name
         body = "Structure Unanchoring!"
@@ -840,11 +840,11 @@ class StructureDestroyed(NotificationPing):
             if structure_name:
                 structure_name = structure_name.location_name
             else:
-                structure_name = "Unknown"
+                structure_name = "Attack Notification"
 
         except Exception as e:
             logger.error(f"PINGER: Error fetching structure name? {e}")
-            structure_name = "Unknown"
+            structure_name = "Attack Notification"
 
         title = structure_name
         body = "Structure Destroyed!"
@@ -951,11 +951,11 @@ class StructureNoReagentsAlert(NotificationPing):
             if structure_name:
                 structure_name = structure_name.location_name
             else:
-                structure_name = "Unknown"
+                structure_name = "Structure Notification"
 
         except Exception as e:
             logger.error(f"PINGER: Error fetching structure name? {e}")
-            structure_name = "Unknown"
+            structure_name = "Structure Notification"
 
         title = structure_name
         body = "Structure Out of Reagents!"
@@ -1030,11 +1030,11 @@ class StructureLowReagentsAlert(NotificationPing):
             if structure_name:
                 structure_name = structure_name.location_name
             else:
-                structure_name = "Unknown"
+                structure_name = "Structure Notification"
 
         except Exception as e:
             logger.error(f"PINGER: Error fetching structure name? {e}")
-            structure_name = "Unknown"
+            structure_name = "Structure Notification"
 
         title = structure_name
         body = "Structure Low Reagents!"
