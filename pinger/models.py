@@ -100,7 +100,7 @@ class FuelPingRecord(models.Model):
 
         _system_name = f"[{self.structure.system_name.name}]({dotlan.solar_system_url(self.structure.system_name.name)})"
         _region_name = (
-            self.structure.system_name.constellation.region.region_name
+            self.structure.system_name.constellation.region.name
         )  # Get region name
 
         _url = eveimageserver.type_icon_url(self.structure.type_id, 64)
