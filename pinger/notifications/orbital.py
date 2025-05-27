@@ -1,4 +1,3 @@
-
 import datetime
 import logging
 
@@ -9,7 +8,10 @@ from django.utils import timezone
 
 from .base import NotificationPing
 from .helpers import (
-    create_timer, filetime_to_dt, format_timedelta, time_till_to_td,
+    create_timer,
+    filetime_to_dt,
+    format_timedelta,
+    time_till_to_td,
     timers_enabled,
 )
 
@@ -31,10 +33,10 @@ class OrbitalAttacked(NotificationPing):
     """
 
     def build_ping(self):
-        system_db = ctm.MapSystem.objects.get(
-            system_id=self._data['solarSystemID'])
+        system_db = ctm.MapSystem.objects.get(system_id=self._data["solarSystemID"])
         planet_db, _ = ctm.MapSystemPlanet.objects.get_or_create_from_esi(
-            planet_id=self._data['planetID'])
+            planet_id=self._data["planetID"]
+        )
 
         system_name = system_db.name
         region_name = system_db.constellation.region.name
@@ -44,44 +46,61 @@ class OrbitalAttacked(NotificationPing):
         region_name = f"[{region_name}]({dotlan.region_url(region_name)})"
 
         structure_type, _ = ctm.EveItemType.objects.get_or_create_from_esi(
-            self._data['typeID'])
+            self._data["typeID"]
+        )
 
         title = "Poco Under Attack"
-        shld = float(self._data['shieldLevel'])*100
+        shld = float(self._data["shieldLevel"]) * 100
         body = "{} under Attack!\nShield Level: {:.2f}%".format(
-            structure_type.name, shld)
+            structure_type.name, shld
+        )
 
         corp_id = self._notification.character.character.corporation_id
         corp_ticker = self._notification.character.character.corporation_ticker
-        footer = {"icon_url": eveimageserver.corporation_logo_url(corp_id, 64),
-                  "text": "%s (%s)" % (self._notification.character.character.corporation_name, corp_ticker)}
+        footer = {
+            "icon_url": eveimageserver.corporation_logo_url(corp_id, 64),
+            "text": "%s (%s)"
+            % (self._notification.character.character.corporation_name, corp_ticker),
+        }
 
         attacking_char, _ = ctm.EveName.objects.get_or_create_from_esi(
-            self._data['aggressorID'])
+            self._data["aggressorID"]
+        )
         attacking_corp, _ = ctm.EveName.objects.get_or_create_from_esi(
-            self._data['aggressorCorpID'])
+            self._data["aggressorCorpID"]
+        )
 
         attacking_alli = None
-        if self._data['aggressorAllianceID']:
+        if self._data["aggressorAllianceID"]:
             attacking_alli, _ = ctm.EveName.objects.get_or_create_from_esi(
-                self._data['aggressorAllianceID'])
+                self._data["aggressorAllianceID"]
+            )
 
-        attackerStr = "%s, %s, %s" % \
-            (f"*[{attacking_char.name}]({zkillboard.character_url(attacking_char.eve_id)})*",
-             f"[{attacking_corp.name}]({zkillboard.corporation_url(attacking_corp.eve_id)})",
-             f"**[{attacking_alli.name}]({zkillboard.alliance_url(attacking_alli.eve_id)})**" if attacking_alli else "")
+        attackerStr = "%s, %s, %s" % (
+            f"*[{attacking_char.name}]({zkillboard.character_url(attacking_char.eve_id)})*",
+            f"[{attacking_corp.name}]({zkillboard.corporation_url(attacking_corp.eve_id)})",
+            (
+                f"**[{attacking_alli.name}]({zkillboard.alliance_url(attacking_alli.eve_id)})**"
+                if attacking_alli
+                else ""
+            ),
+        )
 
-        fields = [{'name': 'System/Planet', 'value': system_name, 'inline': True},
-                  {'name': 'Region', 'value': region_name, 'inline': True},
-                  {'name': 'Type', 'value': structure_type.name, 'inline': True},
-                  {'name': 'Attacker', 'value': attackerStr, 'inline': False}]
+        fields = [
+            {"name": "System/Planet", "value": system_name, "inline": True},
+            {"name": "Region", "value": region_name, "inline": True},
+            {"name": "Type", "value": structure_type.name, "inline": True},
+            {"name": "Attacker", "value": attackerStr, "inline": False},
+        ]
 
-        self.package_ping(title,
-                          body,
-                          self._notification.timestamp,
-                          fields=fields,
-                          footer=footer,
-                          colour=15158332)
+        self.package_ping(
+            title,
+            body,
+            self._notification.timestamp,
+            fields=fields,
+            footer=footer,
+            colour=15158332,
+        )
 
         self._corp = self._notification.character.character.corporation_id
         self._alli = self._notification.character.character.alliance_id
@@ -104,19 +123,21 @@ class OrbitalReinforced(NotificationPing):
     """
 
     def build_ping(self):
-        system_db = ctm.MapSystem.objects.get(
-            system_id=self._data['solarSystemID'])
+        system_db = ctm.MapSystem.objects.get(system_id=self._data["solarSystemID"])
         planet_db, _ = ctm.MapSystemPlanet.objects.get_or_create_from_esi(
-            planet_id=self._data['planetID'])
+            planet_id=self._data["planetID"]
+        )
 
         system_name = system_db.name
         planet_name = planet_db.name
         system_name = f"[{planet_name}]({dotlan.solar_system_url(system_name)})"
         structure_type, _ = ctm.EveItemType.objects.get_or_create_from_esi(
-            self._data['typeID'])
+            self._data["typeID"]
+        )
 
-        _timeTill = filetime_to_dt(self._data['reinforceExitTime']).replace(
-            tzinfo=datetime.timezone.utc)
+        _timeTill = filetime_to_dt(self._data["reinforceExitTime"]).replace(
+            tzinfo=datetime.timezone.utc
+        )
         _refTimeDelta = _timeTill - timezone.now()
         tile_till = format_timedelta(_refTimeDelta)
 
@@ -125,24 +146,36 @@ class OrbitalReinforced(NotificationPing):
 
         corp_id = self._notification.character.character.corporation_id
         corp_ticker = self._notification.character.character.corporation_ticker
-        corp_name = "[%s](%s)" % \
-            (self._notification.character.character.corporation_name,
-             zkillboard.corporation_url(corp_id))
-        footer = {"icon_url": eveimageserver.corporation_logo_url(corp_id, 64),
-                  "text": "%s (%s)" % (self._notification.character.character.corporation_name, corp_ticker)}
+        corp_name = "[%s](%s)" % (
+            self._notification.character.character.corporation_name,
+            zkillboard.corporation_url(corp_id),
+        )
+        footer = {
+            "icon_url": eveimageserver.corporation_logo_url(corp_id, 64),
+            "text": "%s (%s)"
+            % (self._notification.character.character.corporation_name, corp_ticker),
+        }
 
-        fields = [{'name': 'System', 'value': system_name, 'inline': True},
-                  {'name': 'Type', 'value': structure_type.name, 'inline': True},
-                  {'name': 'Owner', 'value': corp_name, 'inline': False},
-                  {'name': 'Time Till Out', 'value': tile_till, 'inline': False},
-                  {'name': 'Date Out', 'value': _timeTill.strftime("%Y-%m-%d %H:%M"), 'inline': False}]
+        fields = [
+            {"name": "System", "value": system_name, "inline": True},
+            {"name": "Type", "value": structure_type.name, "inline": True},
+            {"name": "Owner", "value": corp_name, "inline": False},
+            {"name": "Time Till Out", "value": tile_till, "inline": False},
+            {
+                "name": "Date Out",
+                "value": _timeTill.strftime("%Y-%m-%d %H:%M"),
+                "inline": False,
+            },
+        ]
 
-        self.package_ping(title,
-                          body,
-                          self._notification.timestamp,
-                          fields=fields,
-                          footer=footer,
-                          colour=7419530)
+        self.package_ping(
+            title,
+            body,
+            self._notification.timestamp,
+            fields=fields,
+            footer=footer,
+            colour=7419530,
+        )
 
         if timers_enabled():
             try:
@@ -154,11 +187,10 @@ class OrbitalReinforced(NotificationPing):
                     system_db.name,
                     TimerType.ARMOR,
                     _timeTill,
-                    self._notification.character.character.corporation
+                    self._notification.character.character.corporation,
                 )
             except Exception as e:
-                logger.exception(
-                    f"PINGER: Failed to build timer OrbitalReinforced {e}")
+                logger.exception(f"PINGER: Failed to build timer OrbitalReinforced {e}")
 
         self._corp = self._notification.character.character.corporation_id
         self._alli = self._notification.character.character.alliance_id
@@ -200,63 +232,103 @@ class SkyhookUnderAttack(NotificationPing):
     """
 
     def build_ping(self):
-        system_db = ctm.MapSystem.objects.get(
-            system_id=self._data['solarsystemID'])  # WTF...
-        planet_db, _ = ctm.MapSystemPlanet.objects.get_or_create_from_esi(
-            planet_id=self._data['planetID'])
+        logger.debug(f"Starting build_ping with data: {self._data}")
 
-        system_name = system_db.name
-        region_name = system_db.constellation.region.name
-        planet_name = planet_db.name
+        try:
+            system_db = ctm.MapSystem.objects.get(system_id=self._data["solarsystemID"])
+            logger.debug(f"Loaded system: {system_db.name} (ID: {system_db.system_id})")
+        except Exception as e:
+            logger.exception("Failed to load MapSystem")
+            raise
 
-        system_name = f"[{planet_name}]({dotlan.solar_system_url(system_name)})"
-        region_name = f"[{region_name}]({dotlan.region_url(region_name)})"
+        try:
+            planet_db, _ = ctm.MapSystemPlanet.objects.get_or_create_from_esi(
+                planet_id=self._data["planetID"]
+            )
+            logger.debug(
+                f"Loaded planet: {planet_db.name} (ID: {self._data['planetID']})"
+            )
+        except Exception as e:
+            logger.exception("Failed to load or create MapSystemPlanet")
+            raise
 
-        structure_type, _ = ctm.EveItemType.objects.get_or_create_from_esi(
-            self._data['typeID'])
+        system_name = f"[{planet_db.name}]({dotlan.solar_system_url(system_db.name)})"
+        region_name = f"[{system_db.constellation.region.name}]({dotlan.region_url(system_db.constellation.region.name)})"
+
+        try:
+            structure_type, _ = ctm.EveItemType.objects.get_or_create_from_esi(
+                self._data["typeID"]
+            )
+            logger.debug(
+                f"Structure type: {structure_type.name} (ID: {self._data['typeID']})"
+            )
+        except Exception as e:
+            logger.exception("Failed to load or create EveItemType")
+            raise
 
         title = "Skyhook Under Attack"
         body = "{} - {} under Attack!\nS: {:.2f}% A: {:.2f}, H: {:.2f}".format(
             structure_type.name,
             system_name,
-            float(self._data['shieldPercentage']),
-            float(self._data['armorPercentage']),
-            float(self._data['hullPercentage']))
+            float(self._data["shieldPercentage"]),
+            float(self._data["armorPercentage"]),
+            float(self._data["hullPercentage"]),
+        )
+        logger.debug(f"Notification body: {body}")
 
-        corp_id = self._notification.character.character.corporation_id
-        corp_ticker = self._notification.character.character.corporation_ticker
-        footer = {"icon_url": eveimageserver.corporation_logo_url(corp_id, 64),
-                  "text": "%s (%s)" % (self._notification.character.character.corporation_name, corp_ticker)}
+        character = self._notification.character.character
+        corp_id = character.corporation_id
+        corp_ticker = character.corporation_ticker
 
-        attacking_char, _ = ctm.EveName.objects.get_or_create_from_esi(
-            self._data['charID'])
-        attacking_corp = self._data['corpName']
+        footer = {
+            "icon_url": eveimageserver.corporation_logo_url(corp_id, 64),
+            "text": f"{character.corporation_name} ({corp_ticker})",
+        }
 
-        attacking_alli = None
-        if self._data['allianceName']:
-            attacking_alli = self._data['allianceName']
+        try:
+            attacking_char, _ = ctm.EveName.objects.get_or_create_from_esi(
+                self._data["charID"]
+            )
+            logger.debug(
+                f"Attacking character: {attacking_char.name} (ID: {attacking_char.eve_id})"
+            )
+        except Exception as e:
+            logger.exception("Failed to get or create attacking character EveName")
+            raise
 
-        attackerStr = "%s, %s, %s" % \
-            (f"*[{attacking_char.name}]({zkillboard.character_url(attacking_char.eve_id)})*",
-            f"[{attacking_corp.name}]({zkillboard.corporation_url(attacking_corp.eve_id)})",
-            f"**[{attacking_alli.name}]({zkillboard.alliance_url(attacking_alli.eve_id)})**" if attacking_alli else "")
+        attacking_corp = self._data.get("corpName")
+        attacking_alli = self._data.get("allianceName")
 
-        fields = [{'name': 'System/Planet', 'value': system_name, 'inline': True},
-                  {'name': 'Region', 'value': region_name, 'inline': True},
-                  {'name': 'Type', 'value': structure_type.name, 'inline': True},
-                  {'name': 'Attacker', 'value': attackerStr, 'inline': False}]
+        attackerStr = (
+            f"*[{attacking_char.name}]({zkillboard.character_url(attacking_char.eve_id)})*, "
+            f"[{attacking_corp}]({zkillboard.corporation_url(attacking_corp.get('id', 0))})"
+        )
+        if attacking_alli:
+            attackerStr += f", **[{attacking_alli}]({zkillboard.alliance_url(attacking_alli.get('id', 0))})**"
+            logger.debug(f"Attacker alliance: {attacking_alli}")
 
-        self.package_ping(title,
-                          body,
-                          self._notification.timestamp,
-                          fields=fields,
-                          footer=footer,
-                          colour=15158332)
+        fields = [
+            {"name": "System/Planet", "value": system_name, "inline": True},
+            {"name": "Region", "value": region_name, "inline": True},
+            {"name": "Type", "value": structure_type.name, "inline": True},
+            {"name": "Attacker", "value": attackerStr, "inline": False},
+        ]
 
-        self._corp = self._notification.character.character.corporation_id
-        self._alli = self._notification.character.character.alliance_id
+        logger.debug("Packaging ping...")
+        self.package_ping(
+            title,
+            body,
+            self._notification.timestamp,
+            fields=fields,
+            footer=footer,
+            colour=15158332,
+        )
+
+        self._corp = corp_id
+        self._alli = character.alliance_id
         self._region = system_db.constellation.region.region_id
         self.force_at_ping = True
+        logger.debug("Finished build_ping")
 
 
 class SkyhookLostShields(NotificationPing):
@@ -281,19 +353,21 @@ class SkyhookLostShields(NotificationPing):
     """
 
     def build_ping(self):
-        system_db = ctm.MapSystem.objects.get(
-            system_id=self._data['solarsystemID'])
+        system_db = ctm.MapSystem.objects.get(system_id=self._data["solarsystemID"])
         planet_db, _ = ctm.MapSystemPlanet.objects.get_or_create_from_esi(
-            planet_id=self._data['planetID'])
+            planet_id=self._data["planetID"]
+        )
 
         system_name = system_db.name
         planet_name = planet_db.name
         system_name = f"[{planet_name}]({dotlan.solar_system_url(system_name)})"
         structure_type, _ = ctm.EveItemType.objects.get_or_create_from_esi(
-            self._data['typeID'])
+            self._data["typeID"]
+        )
 
-        _timeTill = filetime_to_dt(self._data['timestamp']).replace(
-            tzinfo=datetime.timezone.utc)
+        _timeTill = filetime_to_dt(self._data["timestamp"]).replace(
+            tzinfo=datetime.timezone.utc
+        )
         _refTimeDelta = _timeTill - timezone.now()
         tile_till = format_timedelta(_refTimeDelta)
 
@@ -302,24 +376,36 @@ class SkyhookLostShields(NotificationPing):
 
         corp_id = self._notification.character.character.corporation_id
         corp_ticker = self._notification.character.character.corporation_ticker
-        corp_name = "[%s](%s)" % \
-            (self._notification.character.character.corporation_name,
-             zkillboard.corporation_url(corp_id))
-        footer = {"icon_url": eveimageserver.corporation_logo_url(corp_id, 64),
-                  "text": "%s (%s)" % (self._notification.character.character.corporation_name, corp_ticker)}
+        corp_name = "[%s](%s)" % (
+            self._notification.character.character.corporation_name,
+            zkillboard.corporation_url(corp_id),
+        )
+        footer = {
+            "icon_url": eveimageserver.corporation_logo_url(corp_id, 64),
+            "text": "%s (%s)"
+            % (self._notification.character.character.corporation_name, corp_ticker),
+        }
 
-        fields = [{'name': 'System', 'value': system_name, 'inline': True},
-                  {'name': 'Type', 'value': structure_type.name, 'inline': True},
-                  {'name': 'Owner', 'value': corp_name, 'inline': False},
-                  {'name': 'Time Till Out', 'value': tile_till, 'inline': False},
-                  {'name': 'Date Out', 'value': _timeTill.strftime("%Y-%m-%d %H:%M"), 'inline': False}]
+        fields = [
+            {"name": "System", "value": system_name, "inline": True},
+            {"name": "Type", "value": structure_type.name, "inline": True},
+            {"name": "Owner", "value": corp_name, "inline": False},
+            {"name": "Time Till Out", "value": tile_till, "inline": False},
+            {
+                "name": "Date Out",
+                "value": _timeTill.strftime("%Y-%m-%d %H:%M"),
+                "inline": False,
+            },
+        ]
 
-        self.package_ping(title,
-                          body,
-                          self._notification.timestamp,
-                          fields=fields,
-                          footer=footer,
-                          colour=7419530)
+        self.package_ping(
+            title,
+            body,
+            self._notification.timestamp,
+            fields=fields,
+            footer=footer,
+            colour=7419530,
+        )
 
         if timers_enabled():
             try:
@@ -331,11 +417,10 @@ class SkyhookLostShields(NotificationPing):
                     system_db.name,
                     TimerType.ARMOR,
                     _timeTill,
-                    self._notification.character.character.corporation
+                    self._notification.character.character.corporation,
                 )
             except Exception as e:
-                logger.exception(
-                    f"PINGER: Failed to build timer OrbitalReinforced {e}")
+                logger.exception(f"PINGER: Failed to build timer OrbitalReinforced {e}")
 
         self._corp = self._notification.character.character.corporation_id
         self._alli = self._notification.character.character.alliance_id
@@ -362,9 +447,11 @@ class SkyhookOnline(NotificationPing):
 
     def build_ping(self):
         system_db = ctm.MapSystem.objects.get(
-            system_id=self._data['solarsystemID'])  # WTF...
+            system_id=self._data["solarsystemID"]
+        )  # WTF...
         planet_db, _ = ctm.MapSystemPlanet.objects.get_or_create_from_esi(
-            planet_id=self._data['planetID'])
+            planet_id=self._data["planetID"]
+        )
 
         system_name = system_db.name
         region_name = system_db.constellation.region.name
@@ -374,35 +461,34 @@ class SkyhookOnline(NotificationPing):
         region_name = f"[{region_name}]({dotlan.region_url(region_name)})"
 
         structure_type, _ = ctm.EveItemType.objects.get_or_create_from_esi(
-            self._data['typeID'])
+            self._data["typeID"]
+        )
 
         title = "Skyhook Online"
-        body = "{} - {} - {} Online".format(
-            system_name,
-            region_name,
-            planet_name
-        )
+        body = "{} - {} - {} Online".format(system_name, region_name, planet_name)
 
         corp_id = self._notification.character.character.corporation_id
         corp_ticker = self._notification.character.character.corporation_ticker
         footer = {
             "icon_url": eveimageserver.corporation_logo_url(corp_id, 64),
-            "text": f"{self._notification.character.character.corporation_name} ({corp_ticker})"
+            "text": f"{self._notification.character.character.corporation_name} ({corp_ticker})",
         }
 
         fields = [
-            {'name': 'Planet', 'value': planet_name, 'inline': True},
-            {'name': 'System', 'value': system_name, 'inline': True},
-            {'name': 'Region', 'value': region_name, 'inline': True},
-            {'name': 'Type', 'value': structure_type.name, 'inline': True}
+            {"name": "Planet", "value": planet_name, "inline": True},
+            {"name": "System", "value": system_name, "inline": True},
+            {"name": "Region", "value": region_name, "inline": True},
+            {"name": "Type", "value": structure_type.name, "inline": True},
         ]
 
-        self.package_ping(title,
-                          body,
-                          self._notification.timestamp,
-                          fields=fields,
-                          footer=footer,
-                          colour=15158332)
+        self.package_ping(
+            title,
+            body,
+            self._notification.timestamp,
+            fields=fields,
+            footer=footer,
+            colour=15158332,
+        )
 
         self._corp = self._notification.character.character.corporation_id
         self._alli = self._notification.character.character.alliance_id
@@ -436,9 +522,11 @@ class SkyhookDeployed(NotificationPing):
 
     def build_ping(self):
         system_db = ctm.MapSystem.objects.get(
-            system_id=self._data['solarsystemID'])  # WTF...
+            system_id=self._data["solarsystemID"]
+        )  # WTF...
         planet_db, _ = ctm.MapSystemPlanet.objects.get_or_create_from_esi(
-            planet_id=self._data['planetID'])
+            planet_id=self._data["planetID"]
+        )
 
         system_name = system_db.name
         region_name = system_db.constellation.region.name
@@ -448,37 +536,36 @@ class SkyhookDeployed(NotificationPing):
         region_name = f"[{region_name}]({dotlan.region_url(region_name)})"
 
         structure_type, _ = ctm.EveItemType.objects.get_or_create_from_esi(
-            self._data['typeID'])
+            self._data["typeID"]
+        )
 
         title = "Skyhook Online"
-        body = "{} - {} - {} Online".format(
-            system_name,
-            region_name,
-            planet_name
-        )
+        body = "{} - {} - {} Online".format(system_name, region_name, planet_name)
 
         corp_id = self._notification.character.character.corporation_id
         corp_ticker = self._notification.character.character.corporation_ticker
         footer = {
             "icon_url": eveimageserver.corporation_logo_url(corp_id, 64),
-            "text": f"{self._notification.character.character.corporation_name} ({corp_ticker})"
+            "text": f"{self._notification.character.character.corporation_name} ({corp_ticker})",
         }
 
-        #out_time = timezone.now() + time_till_to_td()
+        # out_time = timezone.now() + time_till_to_td()
 
         fields = [
-            {'name': 'Planet', 'value': planet_name, 'inline': True},
-            {'name': 'System', 'value': system_name, 'inline': True},
-            {'name': 'Region', 'value': region_name, 'inline': True},
-            {'name': 'Type', 'value': structure_type.name, 'inline': True}
+            {"name": "Planet", "value": planet_name, "inline": True},
+            {"name": "System", "value": system_name, "inline": True},
+            {"name": "Region", "value": region_name, "inline": True},
+            {"name": "Type", "value": structure_type.name, "inline": True},
         ]
 
-        self.package_ping(title,
-                          body,
-                          self._notification.timestamp,
-                          fields=fields,
-                          footer=footer,
-                          colour=15158332)
+        self.package_ping(
+            title,
+            body,
+            self._notification.timestamp,
+            fields=fields,
+            footer=footer,
+            colour=15158332,
+        )
 
         self._corp = self._notification.character.character.corporation_id
         self._alli = self._notification.character.character.alliance_id
@@ -491,6 +578,7 @@ class MercenaryDenAttacked(NotificationPing):
     unknown notification type (287)
     Guestimated to be MercenaryDenAttacked
     """
+
     category = "orbital-attack"  # i guess this is kinda an orbital :-D
 
     """
@@ -515,10 +603,10 @@ class MercenaryDenAttacked(NotificationPing):
     """
 
     def build_ping(self):
-        system_db = ctm.MapSystem.objects.get(
-            system_id=self._data['solarsystemID'])
+        system_db = ctm.MapSystem.objects.get(system_id=self._data["solarsystemID"])
         planet_db, _ = ctm.MapSystemPlanet.objects.get_or_create_from_esi(
-            planet_id=self._data['planetID'])
+            planet_id=self._data["planetID"]
+        )
 
         system_name = system_db.name
         region_name = system_db.constellation.region.name
@@ -528,45 +616,54 @@ class MercenaryDenAttacked(NotificationPing):
         region_name = f"[{region_name}]({dotlan.region_url(region_name)})"
 
         structure_type, _ = ctm.EveItemType.objects.get_or_create_from_esi(
-            self._data['typeID'])
+            self._data["typeID"]
+        )
 
         title = "Merc Den Under Attack"
-        shld = float(self._data['shieldPercentage'])
-        armr = float(self._data['armorPercentage'])
-        hull = float(self._data['hullPercentage'])
+        shld = float(self._data["shieldPercentage"])
+        armr = float(self._data["armorPercentage"])
+        hull = float(self._data["hullPercentage"])
         body = "{} under Attack!\n[ S: {:.2f}% A: {:.2f}% H: {:.2f}% ]".format(
             structure_type.name, shld, armr, hull
         )
 
         corp_id = self._notification.character.character.corporation_id
         corp_ticker = self._notification.character.character.corporation_ticker
-        corp_name = "[%s](%s)" % \
-            (self._notification.character.character.corporation_name,
-             zkillboard.corporation_url(corp_id))
-        footer = {"icon_url": eveimageserver.corporation_logo_url(corp_id, 64),
-                  "text": "%s (%s)" % (self._notification.character.character.corporation_name, corp_ticker)}
+        corp_name = "[%s](%s)" % (
+            self._notification.character.character.corporation_name,
+            zkillboard.corporation_url(corp_id),
+        )
+        footer = {
+            "icon_url": eveimageserver.corporation_logo_url(corp_id, 64),
+            "text": "%s (%s)"
+            % (self._notification.character.character.corporation_name, corp_ticker),
+        }
 
         attacking_char, _ = ctm.EveName.objects.get_or_create_from_esi(
-            self._data['aggressorCharacterID'])
+            self._data["aggressorCharacterID"]
+        )
 
-        attackerStr = "[%s](%s)" % \
-            (
-                attacking_char.name,
-                zkillboard.character_url(attacking_char.eve_id)
-            )
+        attackerStr = "[%s](%s)" % (
+            attacking_char.name,
+            zkillboard.character_url(attacking_char.eve_id),
+        )
 
-        fields = [{'name': 'System/Planet', 'value': system_name, 'inline': True},
-                  {'name': 'Region', 'value': region_name, 'inline': True},
-                  {'name': 'Type', 'value': structure_type.name, 'inline': True},
-                  {'name': 'Owner', 'value': corp_name, 'inline': False},
-                  {'name': 'Attacker', 'value': attackerStr, 'inline': False}]
+        fields = [
+            {"name": "System/Planet", "value": system_name, "inline": True},
+            {"name": "Region", "value": region_name, "inline": True},
+            {"name": "Type", "value": structure_type.name, "inline": True},
+            {"name": "Owner", "value": corp_name, "inline": False},
+            {"name": "Attacker", "value": attackerStr, "inline": False},
+        ]
 
-        self.package_ping(title,
-                          body,
-                          self._notification.timestamp,
-                          fields=fields,
-                          footer=footer,
-                          colour=15158332)
+        self.package_ping(
+            title,
+            body,
+            self._notification.timestamp,
+            fields=fields,
+            footer=footer,
+            colour=15158332,
+        )
 
         self._corp = self._notification.character.character.corporation_id
         self._alli = self._notification.character.character.alliance_id
@@ -598,10 +695,11 @@ class MercenaryDenReinforced(NotificationPing):
     """
 
     def build_ping(self):
-        system_db = ctm.MapSystem.objects.get(
-            system_id=self._data['solarsystemID'])
+        system_db = ctm.MapSystem.objects.get(system_id=self._data["solarsystemID"])
+        logger.debug(f"Loaded system: {system_db.name} (ID: {system_db.system_id})")
         planet_db, _ = ctm.MapSystemPlanet.objects.get_or_create_from_esi(
-            planet_id=self._data['planetID'])
+            planet_id=self._data["planetID"]
+        )
 
         system_name = system_db.name
         region_name = system_db.constellation.region.name
@@ -611,10 +709,12 @@ class MercenaryDenReinforced(NotificationPing):
         region_name = f"[{region_name}]({dotlan.region_url(region_name)})"
 
         structure_type, _ = ctm.EveItemType.objects.get_or_create_from_esi(
-            self._data['typeID'])
+            self._data["typeID"]
+        )
 
-        _timeTill = filetime_to_dt(self._data['timestampExited']).replace(
-            tzinfo=datetime.timezone.utc)
+        _timeTill = filetime_to_dt(self._data["timestampExited"]).replace(
+            tzinfo=datetime.timezone.utc
+        )
         _refTimeDelta = _timeTill - timezone.now()
         tile_till = format_timedelta(_refTimeDelta)
 
@@ -623,25 +723,37 @@ class MercenaryDenReinforced(NotificationPing):
 
         corp_id = self._notification.character.character.corporation_id
         corp_ticker = self._notification.character.character.corporation_ticker
-        corp_name = "[%s](%s)" % \
-            (self._notification.character.character.corporation_name,
-             zkillboard.corporation_url(corp_id))
-        footer = {"icon_url": eveimageserver.corporation_logo_url(corp_id, 64),
-                  "text": "%s (%s)" % (self._notification.character.character.corporation_name, corp_ticker)}
+        corp_name = "[%s](%s)" % (
+            self._notification.character.character.corporation_name,
+            zkillboard.corporation_url(corp_id),
+        )
+        footer = {
+            "icon_url": eveimageserver.corporation_logo_url(corp_id, 64),
+            "text": "%s (%s)"
+            % (self._notification.character.character.corporation_name, corp_ticker),
+        }
 
-        fields = [{'name': 'System/Planet', 'value': system_name, 'inline': True},
-                  {'name': 'Region', 'value': region_name, 'inline': True},
-                  {'name': 'Type', 'value': structure_type.name, 'inline': True},
-                  {'name': 'Owner', 'value': corp_name, 'inline': False},
-                  {'name': 'Time Till Out', 'value': tile_till, 'inline': False},
-                  {'name': 'Date Out', 'value': _timeTill.strftime("%Y-%m-%d %H:%M"), 'inline': False}]
+        fields = [
+            {"name": "System/Planet", "value": system_name, "inline": True},
+            {"name": "Region", "value": region_name, "inline": True},
+            {"name": "Type", "value": structure_type.name, "inline": True},
+            {"name": "Owner", "value": corp_name, "inline": False},
+            {"name": "Time Till Out", "value": tile_till, "inline": False},
+            {
+                "name": "Date Out",
+                "value": _timeTill.strftime("%Y-%m-%d %H:%M"),
+                "inline": False,
+            },
+        ]
 
-        self.package_ping(title,
-                          body,
-                          self._notification.timestamp,
-                          fields=fields,
-                          footer=footer,
-                          colour=7419530)
+        self.package_ping(
+            title,
+            body,
+            self._notification.timestamp,
+            fields=fields,
+            footer=footer,
+            colour=7419530,
+        )
 
         if timers_enabled():
             try:
@@ -653,11 +765,12 @@ class MercenaryDenReinforced(NotificationPing):
                     system_db.name,
                     TimerType.ARMOR,
                     _timeTill,
-                    self._notification.character.character.corporation
+                    self._notification.character.character.corporation,
                 )
             except Exception as e:
                 logger.exception(
-                    f"PINGER: Failed to build timer Merc Den Reinforced {e}")
+                    f"PINGER: Failed to build timer Merc Den Reinforced {e}"
+                )
 
         self._corp = self._notification.character.character.corporation_id
         self._alli = self._notification.character.character.alliance_id
