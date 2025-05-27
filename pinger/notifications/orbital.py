@@ -296,16 +296,19 @@ class SkyhookUnderAttack(NotificationPing):
             logger.exception("Failed to get or create attacking character EveName")
             raise
 
-        attacking_corp = self._data.get("corpName")
-        attacking_alli = self._data.get("allianceName")
+        attacking_corp_name = self._data.get("corpName", "Unknown Corp")
+        attacking_corp_id = self._data.get("corpID", 0)
+
+        attacking_alli_name = self._data.get("allianceName")
+        attacking_alli_id = self._data.get("allianceID", 0)
 
         attackerStr = (
             f"*[{attacking_char.name}]({zkillboard.character_url(attacking_char.eve_id)})*, "
-            f"[{attacking_corp}]({zkillboard.corporation_url(attacking_corp.get('id', 0))})"
+            f"[{attacking_corp_name}]({zkillboard.corporation_url(attacking_corp_id)})"
         )
-        if attacking_alli:
-            attackerStr += f", **[{attacking_alli}]({zkillboard.alliance_url(attacking_alli.get('id', 0))})**"
-            logger.debug(f"Attacker alliance: {attacking_alli}")
+
+        if attacking_alli_name:
+            attackerStr += f", **[{attacking_alli_name}]({zkillboard.alliance_url(attacking_alli_id)})**"
 
         fields = [
             {"name": "System/Planet", "value": system_name, "inline": True},
@@ -314,7 +317,6 @@ class SkyhookUnderAttack(NotificationPing):
             {"name": "Attacker", "value": attackerStr, "inline": False},
         ]
 
-        logger.debug("Packaging ping...")
         self.package_ping(
             title,
             body,
@@ -328,7 +330,6 @@ class SkyhookUnderAttack(NotificationPing):
         self._alli = character.alliance_id
         self._region = system_db.constellation.region.region_id
         self.force_at_ping = True
-        logger.debug("Finished build_ping")
 
 
 class SkyhookLostShields(NotificationPing):
